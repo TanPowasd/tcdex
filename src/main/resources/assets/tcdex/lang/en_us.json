@@ -1,4 +1,13 @@
 {
   "item.tcdex.my_love": "I love GFF",
-  "itemGroup.tcdex_tab": "TCDEX"
+  "item.tcdex.light_essence": "Light Essence",
+  "itemGroup.tcdex_tab": "TCDEX",
+  "tooltip.tcdex.light_level": "Light: %s",
+  "command.tcdex.setlight.success": "Set main hand item light level to %s",
+  "command.tcdex.setlight.not_tool": "Main hand item must be a Tinkers tool or armor",
+  "command.tcdex.setlooklight.success": "Set %s light level to %s",
+  "command.tcdex.setlooklight.no_target": "No entity in view direction",
+  "command.tcdex.setlooklight.not_living": "Target must be a living creature and cannot be a player",
+  "command.tcdex.debug.enabled": "Light level debug output enabled",
+  "command.tcdex.debug.disabled": "Light level debug output disabled"
 }

@@ -12,6 +12,8 @@ public class ModItems {
     public static final RegistryObject<Item> MY_LOVE=
             ITEMS.register("my_love",()->new Item(new Item.Properties()));
 
+    public static final RegistryObject<Item> LIGHT_ESSENCE=
+            ITEMS.register("light_essence",()->new Item(new Item.Properties()));
 
 
 

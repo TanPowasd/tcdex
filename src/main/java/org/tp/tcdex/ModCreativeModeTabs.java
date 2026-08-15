@@ -20,6 +20,7 @@ public class ModCreativeModeTabs {
                     .title(Component.translatable("itemGroup.tcdex_tab"))
                     .displayItems((pParameters, pOutput) -> {
                         pOutput.accept(ModItems.MY_LOVE.get());
+                        pOutput.accept(ModItems.LIGHT_ESSENCE.get());
 
 
                     }).build());

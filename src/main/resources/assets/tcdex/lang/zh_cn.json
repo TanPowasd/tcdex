@@ -1,4 +1,13 @@
 {
   "item.tcdex.my_love": "此处应该表达些什么",
-  "itemGroup.tcdex_tab": "此处应该有些文字"
+  "item.tcdex.light_essence": "光之精华",
+  "itemGroup.tcdex_tab": "此处应该有些文字",
+  "tooltip.tcdex.light_level": "光等: %s",
+  "command.tcdex.setlight.success": "已将主手装备光等设置为 %s",
+  "command.tcdex.setlight.not_tool": "主手物品必须是匠魂工具或盔甲",
+  "command.tcdex.setlooklight.success": "已将 %s 的光等设置为 %s",
+  "command.tcdex.setlooklight.no_target": "视角方向没有找到生物",
+  "command.tcdex.setlooklight.not_living": "目标必须是生物，且不能是玩家",
+  "command.tcdex.debug.enabled": "光等调试输出已开启",
+  "command.tcdex.debug.disabled": "光等调试输出已关闭"
 }
