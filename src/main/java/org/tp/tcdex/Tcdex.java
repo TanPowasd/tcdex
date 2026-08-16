@@ -28,6 +28,8 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
+import org.tp.tcdex.element.ElementalModifier;
+import org.tp.tcdex.modifier.EagerEdgeModifier;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(Tcdex.MODID)
@@ -41,6 +43,10 @@ public class Tcdex {
 
     public Tcdex() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+
+        // 注册自定义匠魂 Modifier
+        modEventBus.addListener(EagerEdgeModifier::registerModifier);
+        modEventBus.addListener(ElementalModifier::registerModifiers);
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);

@@ -87,16 +87,19 @@ public class Config {
             .comment("Damage dealt bonus per light level when player is higher than monster. Default: 0.01 (1%).")
             .defineInRange("dealtOverlevelStep", 0.01, 0.0, 1.0);
     private static final ForgeConfigSpec.DoubleValue DEALT_OVERLEVEL_CAP = BUILDER
-            .comment("Max light level advantage counted for damage dealt. Default: 50.")
-            .defineInRange("dealtOverlevelCap", 50.0, 0.0, 1000.0);
+            .comment("Max light level advantage counted for damage dealt. Default: 20 (matches Destiny 2's +20 power advantage cap).")
+            .defineInRange("dealtOverlevelCap", 20.0, 0.0, 1000.0);
+    private static final ForgeConfigSpec.DoubleValue DEALT_UNDERLEVEL_STEP = BUILDER
+            .comment("Damage dealt penalty per light level when player is lower than monster. Default: 0.02 (2%).")
+            .defineInRange("dealtUnderlevelStep", 0.02, 0.0, 1.0);
     private static final ForgeConfigSpec.DoubleValue DEALT_UNDERLEVEL_MIN = BUILDER
-            .comment("Minimum damage dealt multiplier when player is much lower than monster. Default: 0.2 (20%).")
-            .defineInRange("dealtUnderlevelMin", 0.2, 0.0, 1.0);
+            .comment("Minimum damage dealt multiplier when player is much lower than monster. Default: 0.02 (2%).")
+            .defineInRange("dealtUnderlevelMin", 0.02, 0.0, 1.0);
 
     // 怪物攻击玩家时的伤害修正系数
     private static final ForgeConfigSpec.DoubleValue TAKEN_UNDERLEVEL_STEP = BUILDER
-            .comment("Damage taken bonus per light level when player is lower than monster. Default: 0.02 (2%).")
-            .defineInRange("takenUnderlevelStep", 0.02, 0.0, 1.0);
+            .comment("Damage taken bonus per light level when player is lower than monster. Default: 0.04 (4%).")
+            .defineInRange("takenUnderlevelStep", 0.04, 0.0, 1.0);
     private static final ForgeConfigSpec.DoubleValue TAKEN_UNDERLEVEL_CAP = BUILDER
             .comment("Max damage taken multiplier when player is much lower than monster. Default: 2.0 (200%).")
             .defineInRange("takenUnderlevelCap", 2.0, 0.0, 100.0);
@@ -104,8 +107,8 @@ public class Config {
             .comment("Damage taken reduction per light level when player is higher than monster. Default: 0.01 (1%).")
             .defineInRange("takenOverlevelStep", 0.01, 0.0, 1.0);
     private static final ForgeConfigSpec.DoubleValue TAKEN_OVERLEVEL_MIN = BUILDER
-            .comment("Minimum damage taken multiplier when player is much higher than monster. Default: 0.5 (50%).")
-            .defineInRange("takenOverlevelMin", 0.5, 0.0, 1.0);
+            .comment("Minimum damage taken multiplier when player is much higher than monster. Default: 0.8 (80%, corresponding to the +20 power advantage cap).")
+            .defineInRange("takenOverlevelMin", 0.8, 0.0, 1.0);
 
     // 光等伤害调试开关
     private static final ForgeConfigSpec.BooleanValue DEBUG_LIGHT_DAMAGE = BUILDER
@@ -140,7 +143,8 @@ public class Config {
         LightLevelManager.reloadFromConfig(MONSTER_BASE_LIGHTS.get(), DEFAULT_MONSTER_LIGHT.get());
         LightLevelManager.setMonsterSpawnRandomRange(MONSTER_SPAWN_RANDOM_RANGE.get());
         LightLevelManager.reloadDamageConfig(
-                DEALT_OVERLEVEL_STEP.get(), DEALT_OVERLEVEL_CAP.get(), DEALT_UNDERLEVEL_MIN.get(),
+                DEALT_OVERLEVEL_STEP.get(), DEALT_OVERLEVEL_CAP.get(),
+                DEALT_UNDERLEVEL_STEP.get(), DEALT_UNDERLEVEL_MIN.get(),
                 TAKEN_UNDERLEVEL_STEP.get(), TAKEN_UNDERLEVEL_CAP.get(),
                 TAKEN_OVERLEVEL_STEP.get(), TAKEN_OVERLEVEL_MIN.get()
         );

@@ -1,0 +1,503 @@
+package org.tp.tcdex.light;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.registries.ForgeRegistries;
+import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.api.IDamageModifierProvider;
+import org.tp.tcdex.api.IEntityLightLevelProvider;
+import org.tp.tcdex.api.IItemLightLevelProvider;
+import slimeknights.tconstruct.library.materials.definition.IMaterial;
+import slimeknights.tconstruct.library.materials.definition.MaterialVariant;
+import slimeknights.tconstruct.library.modifiers.ModifierEntry;
+import slimeknights.tconstruct.library.tools.item.IModifiable;
+import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 命运2风格的光等系统。
+ *
+ * 匠魂工具/盔甲拥有一个“光等”：
+ * - 基础光等由材料阶级和强化等级自动计算。
+ * - 可以通过“光之精华”灌注额外提升。
+ * 怪物也拥有光等，战斗时根据玩家平均光等与怪物光等的差值修正伤害。
+ */
+public final class LightLevelManager {
+
+    /** 匠魂工具持久数据中保存的额外灌注光等 */
+    public static final ResourceLocation LIGHT_LEVEL_KEY = ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "light_level");
+    /** 匠魂工具持久数据中保存的强制光等覆盖值，存在时优先于基础光等+灌注 */
+    public static final ResourceLocation LIGHT_LEVEL_OVERRIDE_KEY = ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "light_level_override");
+    /** 怪物持久数据中保存的基础光等 */
+    public static final String MONSTER_BASE_LIGHT_TAG = "tcdex_monster_base_light";
+
+    /** 默认怪物光等，可通过配置文件修改 */
+    private static int defaultMonsterLight = 20;
+
+    /** 基础光等最低值 */
+    private static final int BASE_LIGHT_MIN = 1;
+    /** 每个材料阶级提供的光等 */
+    private static final int MATERIAL_TIER_POINTS = 8;
+    /** 每个强化等级提供的光等 */
+    private static final int MODIFIER_LEVEL_POINTS = 3;
+    /** 基础光等固定部分 */
+    private static final int BASE_LIGHT_CONSTANT = 10;
+    /** 怪物生成光等随机浮动范围（±值） */
+    private static int monsterSpawnRandomRange = 30;
+    /** 输出伤害：每高 1 光等 +1%，最多 +20%（命运2：光等优势上限 +20） */
+    private static float dealtOverlevelStep = 0.01f;
+    private static float dealtOverlevelCap = 20.0f;
+    /** 输出伤害：每低 1 光等 -2%，最低保留 2%（压光惩罚可压到只剩 2% 伤害） */
+    private static float dealtUnderlevelStep = 0.02f;
+    private static float dealtUnderlevelMin = 0.02f;
+    /** 受到伤害：每低 1 光等 +4%，最多 +100%（2倍，命运2实测值） */
+    private static float takenUnderlevelStep = 0.04f;
+    private static float takenUnderlevelCap = 2.0f;
+    /** 受到伤害：每高 1 光等 -1%，最低 80%（对应优势上限 +20） */
+    private static float takenOverlevelStep = 0.01f;
+    private static float takenOverlevelMin = 0.8f;
+    /** 调试开关：开启后会在聊天框输出光等伤害计算信息 */
+    private static boolean debugEnabled = false;
+    /** HUD 开关：开启后客户端屏幕显示光等信息 */
+    private static boolean hudEnabled = true;
+
+    /** 附属 mod 注册的自定义物品光等提供器 */
+    private static final List<IItemLightLevelProvider> ITEM_LIGHT_PROVIDERS = new ArrayList<>();
+    /** 附属 mod 注册的自定义实体光等提供器 */
+    private static final List<IEntityLightLevelProvider> ENTITY_LIGHT_PROVIDERS = new ArrayList<>();
+    /** 附属 mod 注册的自定义伤害修正提供器 */
+    private static final List<IDamageModifierProvider> DAMAGE_MODIFIER_PROVIDERS = new ArrayList<>();
+
+    /** 内置的怪物基础光等表，key 为实体注册名 */
+    private static final Map<String, Integer> MONSTER_BASE_LIGHTS = new HashMap<>();
+
+    static {
+        // 普通怪物
+        MONSTER_BASE_LIGHTS.put("minecraft:zombie", 20);
+        MONSTER_BASE_LIGHTS.put("minecraft:husk", 25);
+        MONSTER_BASE_LIGHTS.put("minecraft:drowned", 25);
+        MONSTER_BASE_LIGHTS.put("minecraft:skeleton", 20);
+        MONSTER_BASE_LIGHTS.put("minecraft:stray", 25);
+        MONSTER_BASE_LIGHTS.put("minecraft:creeper", 25);
+        MONSTER_BASE_LIGHTS.put("minecraft:spider", 20);
+        MONSTER_BASE_LIGHTS.put("minecraft:cave_spider", 25);
+        MONSTER_BASE_LIGHTS.put("minecraft:slime", 15);
+        MONSTER_BASE_LIGHTS.put("minecraft:magma_cube", 30);
+        MONSTER_BASE_LIGHTS.put("minecraft:zombified_piglin", 30);
+        MONSTER_BASE_LIGHTS.put("minecraft:piglin", 30);
+        MONSTER_BASE_LIGHTS.put("minecraft:piglin_brute", 45);
+        MONSTER_BASE_LIGHTS.put("minecraft:hoglin", 35);
+        MONSTER_BASE_LIGHTS.put("minecraft:zoglin", 40);
+        MONSTER_BASE_LIGHTS.put("minecraft:enderman", 45);
+        MONSTER_BASE_LIGHTS.put("minecraft:endermite", 20);
+        MONSTER_BASE_LIGHTS.put("minecraft:silverfish", 15);
+        MONSTER_BASE_LIGHTS.put("minecraft:witch", 40);
+        MONSTER_BASE_LIGHTS.put("minecraft:phantom", 35);
+        MONSTER_BASE_LIGHTS.put("minecraft:shulker", 45);
+        MONSTER_BASE_LIGHTS.put("minecraft:vex", 35);
+        MONSTER_BASE_LIGHTS.put("minecraft:pillager", 35);
+        MONSTER_BASE_LIGHTS.put("minecraft:vindicator", 40);
+        MONSTER_BASE_LIGHTS.put("minecraft:evoker", 50);
+        MONSTER_BASE_LIGHTS.put("minecraft:ravager", 55);
+        // 下界
+        MONSTER_BASE_LIGHTS.put("minecraft:blaze", 45);
+        MONSTER_BASE_LIGHTS.put("minecraft:ghast", 50);
+        MONSTER_BASE_LIGHTS.put("minecraft:wither_skeleton", 45);
+        //  Boss
+        MONSTER_BASE_LIGHTS.put("minecraft:wither", 100);
+        MONSTER_BASE_LIGHTS.put("minecraft:ender_dragon", 120);
+        MONSTER_BASE_LIGHTS.put("minecraft:warden", 150);
+    }
+
+    /**
+     * 从 Forge 配置重新加载怪物光等表。
+     *
+     * @param entries      格式为 "实体注册名=光等" 的配置项列表
+     * @param defaultLight 未在表中配置时的默认光等
+     */
+    public static void reloadFromConfig(List<? extends String> entries, int defaultLight) {
+        defaultMonsterLight = Math.max(1, defaultLight);
+        MONSTER_BASE_LIGHTS.clear();
+        for (String entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            String trimmed = entry.trim();
+            int eq = trimmed.indexOf('=');
+            if (eq <= 0 || eq == trimmed.length() - 1) {
+                continue;
+            }
+            String id = trimmed.substring(0, eq).trim();
+            String value = trimmed.substring(eq + 1).trim();
+            try {
+                int light = Integer.parseInt(value);
+                MONSTER_BASE_LIGHTS.put(id, Math.max(1, light));
+            } catch (NumberFormatException ignored) {
+                // 忽略无法解析的行
+            }
+        }
+    }
+
+    /** 设置怪物生成光等随机浮动范围 */
+    public static void setMonsterSpawnRandomRange(int range) {
+        monsterSpawnRandomRange = Math.max(0, range);
+    }
+
+    /** 从 Forge 配置重新加载光等伤害修正系数 */
+    public static void reloadDamageConfig(double dealtOverlevelStep, double dealtOverlevelCap, double dealtUnderlevelStep, double dealtUnderlevelMin,
+                                         double takenUnderlevelStep, double takenUnderlevelCap,
+                                         double takenOverlevelStep, double takenOverlevelMin) {
+        LightLevelManager.dealtOverlevelStep = (float) dealtOverlevelStep;
+        LightLevelManager.dealtOverlevelCap = (float) dealtOverlevelCap;
+        LightLevelManager.dealtUnderlevelStep = (float) dealtUnderlevelStep;
+        LightLevelManager.dealtUnderlevelMin = (float) dealtUnderlevelMin;
+        LightLevelManager.takenUnderlevelStep = (float) takenUnderlevelStep;
+        LightLevelManager.takenUnderlevelCap = (float) takenUnderlevelCap;
+        LightLevelManager.takenOverlevelStep = (float) takenOverlevelStep;
+        LightLevelManager.takenOverlevelMin = (float) takenOverlevelMin;
+    }
+
+    /** 注册自定义物品光等提供器 */
+    public static void registerItemLightLevelProvider(IItemLightLevelProvider provider) {
+        if (provider != null && !ITEM_LIGHT_PROVIDERS.contains(provider)) {
+            ITEM_LIGHT_PROVIDERS.add(provider);
+        }
+    }
+
+    /** 注册自定义实体光等提供器 */
+    public static void registerEntityLightLevelProvider(IEntityLightLevelProvider provider) {
+        if (provider != null && !ENTITY_LIGHT_PROVIDERS.contains(provider)) {
+            ENTITY_LIGHT_PROVIDERS.add(provider);
+        }
+    }
+
+    /** 注册自定义伤害修正提供器 */
+    public static void registerDamageModifierProvider(IDamageModifierProvider provider) {
+        if (provider != null && !DAMAGE_MODIFIER_PROVIDERS.contains(provider)) {
+            DAMAGE_MODIFIER_PROVIDERS.add(provider);
+        }
+    }
+
+    /** 是否开启光等调试输出 */
+    public static boolean isDebugEnabled() {
+        return debugEnabled;
+    }
+
+    /** 设置光等调试开关 */
+    public static void setDebugEnabled(boolean enabled) {
+        debugEnabled = enabled;
+    }
+
+    /** 切换光等调试开关，返回切换后的状态 */
+    public static boolean toggleDebug() {
+        debugEnabled = !debugEnabled;
+        return debugEnabled;
+    }
+
+    /** 是否显示光等 HUD */
+    public static boolean isHudEnabled() {
+        return hudEnabled;
+    }
+
+    /** 设置光等 HUD 开关 */
+    public static void setHudEnabled(boolean enabled) {
+        hudEnabled = enabled;
+    }
+
+    private LightLevelManager() {
+    }
+
+    /** 判断物品是否为匠魂可改造工具/盔甲 */
+    public static boolean isTinkersItem(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof IModifiable;
+    }
+
+    /** 判断是否为已经初始化的匠魂工具/盔甲 */
+    public static boolean isTinkersToolOrArmor(ItemStack stack) {
+        return isTinkersItem(stack) && ToolStack.isInitialized(stack);
+    }
+
+    /**
+     * 计算匠魂物品的基础光等。
+     * 基础光等 = 10 + 材料阶级点数 + 强化等级点数。
+     */
+    public static int getBaseLightLevel(ItemStack stack) {
+        if (!isTinkersToolOrArmor(stack)) {
+            return 0;
+        }
+        ToolStack tool = ToolStack.from(stack);
+
+        int materialPoints = 0;
+        for (MaterialVariant variant : tool.getMaterials()) {
+            if (!variant.isUnknown()) {
+                IMaterial material = variant.get();
+                materialPoints += material.getTier() * MATERIAL_TIER_POINTS;
+            }
+        }
+
+        int modifierPoints = 0;
+        for (ModifierEntry entry : tool.getModifiers()) {
+            modifierPoints += entry.getLevel() * MODIFIER_LEVEL_POINTS;
+        }
+
+        return Math.max(BASE_LIGHT_MIN, BASE_LIGHT_CONSTANT + materialPoints + modifierPoints);
+    }
+
+    /** 获取匠魂物品当前额外灌注光等 */
+    public static int getInfusionLevel(ItemStack stack) {
+        if (!isTinkersToolOrArmor(stack)) {
+            return 0;
+        }
+        return ToolStack.from(stack).getPersistentData().getInt(LIGHT_LEVEL_KEY);
+    }
+
+    /** 获取物品最终光等 = 基础光等 + 灌注光等；若存在强制覆盖值则直接返回覆盖值；也支持附属 mod 注册的物品 */
+    public static int getLightLevel(ItemStack stack) {
+        if (isTinkersToolOrArmor(stack)) {
+            ToolStack tool = ToolStack.from(stack);
+            if (tool.getPersistentData().contains(LIGHT_LEVEL_OVERRIDE_KEY)) {
+                return tool.getPersistentData().getInt(LIGHT_LEVEL_OVERRIDE_KEY);
+            }
+            return getBaseLightLevel(stack) + getInfusionLevel(stack);
+        }
+        for (IItemLightLevelProvider provider : ITEM_LIGHT_PROVIDERS) {
+            if (provider.canProvide(stack)) {
+                return provider.getLightLevel(stack);
+            }
+        }
+        return 0;
+    }
+
+    /** 强制将物品光等设置为指定值（匠魂写入覆盖值，自定义物品调用对应提供器） */
+    public static void setLightLevel(ItemStack stack, int value) {
+        if (isTinkersToolOrArmor(stack)) {
+            ToolStack tool = ToolStack.from(stack);
+            tool.getPersistentData().putInt(LIGHT_LEVEL_OVERRIDE_KEY, Math.max(1, value));
+            tool.updateStack(stack);
+            return;
+        }
+        for (IItemLightLevelProvider provider : ITEM_LIGHT_PROVIDERS) {
+            if (provider.canProvide(stack)) {
+                provider.setLightLevel(stack, value);
+                return;
+            }
+        }
+    }
+
+    /** 是否设置了强制光等覆盖值 */
+    public static boolean hasLightLevelOverride(ItemStack stack) {
+        if (!isTinkersToolOrArmor(stack)) {
+            return false;
+        }
+        return ToolStack.from(stack).getPersistentData().contains(LIGHT_LEVEL_OVERRIDE_KEY);
+    }
+
+    /** 移除强制光等覆盖值，恢复为基础光等+灌注 */
+    public static void removeLightLevelOverride(ItemStack stack) {
+        if (!isTinkersToolOrArmor(stack)) {
+            return;
+        }
+        ToolStack tool = ToolStack.from(stack);
+        tool.getPersistentData().remove(LIGHT_LEVEL_OVERRIDE_KEY);
+        tool.updateStack(stack);
+    }
+
+    /** 给匠魂物品增加灌注光等，并写回物品 NBT */
+    public static void addInfusionLevel(ItemStack stack, int amount) {
+        if (!isTinkersToolOrArmor(stack)) {
+            return;
+        }
+        ToolStack tool = ToolStack.from(stack);
+        int current = tool.getPersistentData().getInt(LIGHT_LEVEL_KEY);
+        tool.getPersistentData().putInt(LIGHT_LEVEL_KEY, Math.max(0, current + amount));
+        tool.updateStack(stack);
+    }
+
+    /** 计算玩家平均光等：统计已装备的匠魂/自定义装备 */
+    public static int getPlayerLightLevel(Player player) {
+        int total = 0;
+        int count = 0;
+
+        for (ItemStack stack : player.getArmorSlots()) {
+            int light = getLightLevel(stack);
+            if (light > 0) {
+                total += light;
+                count++;
+            }
+        }
+
+        ItemStack mainHand = player.getMainHandItem();
+        ItemStack offHand = player.getOffhandItem();
+        int mainLight = getLightLevel(mainHand);
+        int offLight = getLightLevel(offHand);
+        if (mainLight > 0) {
+            total += mainLight;
+            count++;
+        }
+        if (offLight > 0) {
+            total += offLight;
+            count++;
+        }
+
+        return count == 0 ? 0 : (int) Math.round((double) total / count);
+    }
+
+    /** 计算玩家护甲平均光等：只统计身上穿戴的盔甲，不统计武器 */
+    public static int getPlayerArmorLightLevel(Player player) {
+        int total = 0;
+        int count = 0;
+        for (ItemStack stack : player.getArmorSlots()) {
+            int light = getLightLevel(stack);
+            if (light > 0) {
+                total += light;
+                count++;
+            }
+        }
+        return count == 0 ? 0 : (int) Math.round((double) total / count);
+    }
+
+    /** 计算玩家武器光等：只看主手物品 */
+    public static int getPlayerWeaponLightLevel(Player player) {
+        return getLightLevel(player.getMainHandItem());
+    }
+
+    /**
+     * 计算玩家攻击光等。
+     * 按 5 个部位加权平均：4 个护甲槽 + 主手武器槽。
+     * 例如：护甲光等 0、武器光等 20 → (0*4 + 20) / 5 = 4
+     */
+    public static int getPlayerAttackLightLevel(Player player) {
+        int total = 0;
+        int count = 0;
+
+        // 4 个护甲槽，空槽或非匠魂按 0 计算
+        for (ItemStack stack : player.getArmorSlots()) {
+            total += getLightLevel(stack);
+            count++;
+        }
+
+        // 主手武器槽
+        total += getLightLevel(player.getMainHandItem());
+        count++;
+
+        return count == 0 ? 0 : (int) Math.round((double) total / count);
+    }
+
+    /** 计算当前服务器所有在线玩家的护甲平均光等（只算盔甲，不算武器） */
+    public static int getAllPlayersArmorAverage(Level level) {
+        if (level.isClientSide || level.getServer() == null) {
+            return 0;
+        }
+        var players = level.getServer().getPlayerList().getPlayers();
+        if (players.isEmpty()) {
+            return 0;
+        }
+        int total = 0;
+        for (Player player : players) {
+            total += getPlayerArmorLightLevel(player);
+        }
+        return (int) Math.round((double) total / players.size());
+    }
+
+    /** 生成怪物光等：所有玩家护甲平均光等 ±30 随机浮动 */
+    public static int rollMonsterSpawnLight(Level level) {
+        int average = getAllPlayersArmorAverage(level);
+        int base = average > 0 ? average : defaultMonsterLight;
+        int roll = monsterSpawnRandomRange <= 0 ? 0 : level.random.nextInt(monsterSpawnRandomRange * 2 + 1) - monsterSpawnRandomRange;
+        return Math.max(1, base + roll);
+    }
+
+    /** 获取怪物当前基础光等 */
+    public static int getMonsterLightLevel(LivingEntity entity) {
+        CompoundTag data = entity.getPersistentData();
+        if (data.contains(MONSTER_BASE_LIGHT_TAG)) {
+            return data.getInt(MONSTER_BASE_LIGHT_TAG);
+        }
+        for (IEntityLightLevelProvider provider : ENTITY_LIGHT_PROVIDERS) {
+            if (provider.canProvide(entity)) {
+                return provider.getLightLevel(entity);
+            }
+        }
+        return getDefaultMonsterBaseLight(entity);
+    }
+
+    /** 强制设置怪物的基础光等 */
+    public static void setMonsterLightLevel(LivingEntity entity, int value) {
+        entity.getPersistentData().putInt(MONSTER_BASE_LIGHT_TAG, Math.max(1, value));
+        for (IEntityLightLevelProvider provider : ENTITY_LIGHT_PROVIDERS) {
+            if (provider.canProvide(entity)) {
+                provider.setLightLevel(entity, value);
+            }
+        }
+    }
+
+    /**
+     * 玩家攻击怪物时的伤害倍率（命运2风格）：
+     * - 高光等：每高 1 光等 +1%，最多 +20%（命运2 优势上限）
+     * - 低光等：每低 1 光等 -2%，最低 2%
+     */
+    public static float getDealtDamageMultiplier(int attackerLight, int defenderLight) {
+        float delta = attackerLight - defenderLight;
+        float multiplier;
+        if (delta >= 0) {
+            multiplier = 1.0f + Math.min(delta, dealtOverlevelCap) * dealtOverlevelStep;
+        } else {
+            multiplier = Math.max(dealtUnderlevelMin, 1.0f + delta * dealtUnderlevelStep);
+        }
+        for (IDamageModifierProvider provider : DAMAGE_MODIFIER_PROVIDERS) {
+            multiplier = provider.modifyDealtDamage(multiplier, attackerLight, defenderLight);
+        }
+        return multiplier;
+    }
+
+    /**
+     * 怪物攻击玩家时的伤害倍率（命运2风格）：
+     * - 玩家低于怪物：每低 1 光等多受 4% 伤害，最多 2 倍（命运2 实测压光曲线）
+     * - 玩家高于怪物：每高 1 光等少受 1% 伤害，最低 80%（对应优势上限 +20）
+     */
+    public static float getTakenDamageMultiplier(int attackerLight, int defenderLight) {
+        float delta = attackerLight - defenderLight;
+        float multiplier;
+        if (delta >= 0) {
+            multiplier = Math.min(takenUnderlevelCap, 1.0f + delta * takenUnderlevelStep);
+        } else {
+            multiplier = Math.max(takenOverlevelMin, 1.0f + delta * takenOverlevelStep);
+        }
+        for (IDamageModifierProvider provider : DAMAGE_MODIFIER_PROVIDERS) {
+            multiplier = provider.modifyTakenDamage(multiplier, attackerLight, defenderLight);
+        }
+        return multiplier;
+    }
+
+    /**
+     * 获取怪物的默认基础光等。
+     * 优先查配置文件；未配置的 mod 生物会根据最大生命值自动生成一个合理光等。
+     */
+    public static int getDefaultMonsterBaseLight(LivingEntity entity) {
+        ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
+        if (key != null) {
+            Integer value = MONSTER_BASE_LIGHTS.get(key.toString());
+            if (value != null) {
+                return value;
+            }
+        }
+        // 兼容其他 mod 的生物：根据最大生命值估算光等
+        int healthBased = (int) Math.ceil(entity.getMaxHealth() * 0.5);
+        int light = 10 + healthBased;
+        return Math.max(defaultMonsterLight, Math.min(200, light));
+    }
+
+    /** 是否为怪物分类（用于生成时附加光等），兼容其他 mod 的敌对生物 */
+    public static boolean isMonster(LivingEntity entity) {
+        return entity instanceof net.minecraft.world.entity.monster.Enemy
+                || entity.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
+    }
+}
