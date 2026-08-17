@@ -100,6 +100,9 @@ public class PlayerShieldEvents {
         if (data.getLong("tcdex_eager_buff_until") > now || data.getLong("tcdex_eager_cooldown_until") > now) {
             return true;
         }
+        if (player.hasEffect(org.tp.tcdex.effect.TcdexEffects.DEVOUR.get())) {
+            return true;
+        }
         if (!IElementalEntity.of(player).getAllElementStates().isEmpty()) {
             return true;
         }
@@ -143,12 +146,20 @@ public class PlayerShieldEvents {
             apCombo = toolData.getInt(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_combo"));
         }
 
+        // 吞噬 buff（剩余 tick）
+        int devourTicks = 0;
+        net.minecraft.world.effect.MobEffectInstance devour = player.getEffect(org.tp.tcdex.effect.TcdexEffects.DEVOUR.get());
+        if (devour != null) {
+            devourTicks = devour.getDuration();
+        }
+
         PacketHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> (net.minecraft.server.level.ServerPlayer) player),
                 new PlayerStateSyncPacket(
                         PlayerShieldManager.getShield(player),
                         PlayerShieldManager.getMaxShield(player),
                         eagerBuff, eagerCooldown,
                         apMode, apForbidden, apSin, apCombo,
+                        devourTicks,
                         IElementalEntity.of(player).getAllElementStates()));
     }
 }

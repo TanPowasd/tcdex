@@ -1,6 +1,7 @@
 package org.tp.tcdex.light;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -28,6 +29,7 @@ import org.tp.tcdex.TcdexF;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
+import org.tp.tcdex.modifier.elemental.ElementalModifier;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 
 import java.util.List;
@@ -269,6 +271,47 @@ public class LightLevelEvents {
                                     }
                                     return 1;
                                 })
+                        )
+                        .then(Commands.literal("setelement")
+                                .then(Commands.argument("element", StringArgumentType.word())
+                                        .suggests((ctx, builder) -> {
+                                            for (ElementType type : ElementType.values()) {
+                                                builder.suggest(type.getId());
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(ctx -> {
+                                            Player player = ctx.getSource().getPlayerOrException();
+                                            String elementId = StringArgumentType.getString(ctx, "element");
+                                            ElementType element = ElementalModifier.parseElement(elementId);
+                                            if (element == null) {
+                                                ctx.getSource().sendFailure(Component.translatable("command.tcdex.setelement.invalid", elementId));
+                                                return 0;
+                                            }
+                                            ItemStack stack = player.getMainHandItem();
+                                            if (stack.isEmpty() || !(stack.getItem() instanceof slimeknights.tconstruct.library.tools.item.IModifiable)) {
+                                                ctx.getSource().sendFailure(Component.translatable("command.tcdex.setlight.not_tool"));
+                                                return 0;
+                                            }
+                                            slimeknights.tconstruct.library.tools.nbt.ToolStack tool = slimeknights.tconstruct.library.tools.nbt.ToolStack.from(stack);
+                                            boolean hasElemental = false;
+                                            for (slimeknights.tconstruct.library.modifiers.ModifierEntry entry : tool.getModifierList()) {
+                                                if (entry.getModifier() instanceof ElementalModifier) {
+                                                    hasElemental = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!hasElemental) {
+                                                ctx.getSource().sendFailure(Component.translatable("command.tcdex.setelement.no_modifier"));
+                                                return 0;
+                                            }
+                                            // 指定并固化元素（覆盖原随机结果，之后不可再变）
+                                            tool.getPersistentData().putString(ElementalModifier.ELEMENT_KEY, element.getId());
+                                            tool.updateStack(stack);
+                                            ctx.getSource().sendSuccess(() -> Component.translatable("command.tcdex.setelement.success", element.getId()), true);
+                                            return 1;
+                                        })
+                                )
                         )
         );
     }

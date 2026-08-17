@@ -14,14 +14,14 @@ public enum ElementType {
 
     /** 烈日：命中 +25 层，持续灼烧（每 tick 层数×0.01×抗性），满 100 Ignite 引爆 */
     SOLAR("solar", ParticleTypes.FLAME, 25f, 100, 0.01f),
-    /** 电弧：标记型，受击时 Jolt 连锁闪电 */
+    /** 电弧：标记型，受击时 Jolt 连锁闪电（连锁目标致盲），击杀带电弧标记目标获得强化（Amplified） */
     ARC("arc", ParticleTypes.ELECTRIC_SPARK, 1f, 100, 0f),
-    /** 虚空：标记型，受击时 Volatile 爆炸（10% 最大生命 AOE） */
+    /** 虚空：标记型，受击时 Volatile 爆炸（10% 最大生命 AOE）+ 期间受击增伤（Weaken），击杀回血（Devour） */
     VOID("void", ParticleTypes.SCULK_SOUL, 1f, 100, 0f),
     /** 冰影：命中 +50 层，渐进减速（≥50 缓慢 I / ≥75 缓慢 II），满 100 冻结，冻结中受击 Shatter +50% */
     STASIS("stasis", ParticleTypes.SNOWFLAKE, 50f, 100, 0f),
-    /** 缚丝：标记型，带标记的攻击者造成伤害 -40%（Sever） */
-    STRAND("strand", ParticleTypes.ENCHANT, 1f, 100, 0f);
+    /** 缚丝：叠层（+25/击），期间攻击者伤害 -40%（Sever），满 100 悬挂（Suspend），击杀带标记目标获得织甲（Woven Mail） */
+    STRAND("strand", ParticleTypes.ENCHANT, 25f, 100, 0f);
 
     private final String id;
     private final ParticleOptions particle;

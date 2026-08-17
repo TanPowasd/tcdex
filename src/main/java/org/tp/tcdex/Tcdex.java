@@ -28,6 +28,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
+import org.tp.tcdex.effect.TcdexEffects;
 import org.tp.tcdex.modifier.elemental.ElementalModifier;
 import org.tp.tcdex.modifier.melee.CombatEchoModifier;
 import org.tp.tcdex.modifier.melee.EagerEdgeModifier;
@@ -55,6 +56,9 @@ public class Tcdex {
         modEventBus.addListener(AllPermittedModifier::registerModifier);
         modEventBus.addListener(CombatEchoModifier::registerModifier);
         modEventBus.addListener(ElementalModifier::registerModifier);
+
+        // 注册自定义药水效果（吞噬等）
+        TcdexEffects.register(modEventBus);
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);

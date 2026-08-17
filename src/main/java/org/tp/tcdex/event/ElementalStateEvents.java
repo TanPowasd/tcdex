@@ -7,8 +7,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -55,6 +58,10 @@ public class ElementalStateEvents {
     private static final int JOLT_TARGETS = 2;
     /** 冰影 Shatter：冻结中受击增伤 */
     private static final float SHATTER_MULTIPLIER = 1.5f;
+    /** 虚空 Weaken：带虚空标记的目标受到的伤害 +15% */
+    private static final float WEAKEN_MULTIPLIER = 1.15f;
+    /** 电弧 Blind：Jolt 连锁命中目标致盲时长（tick） */
+    private static final int BLIND_DURATION = 60;
     /** 护盾量占最大生命的比例 */
     private static final float SHIELD_HEALTH_PERCENT = 0.5f;
 
@@ -129,6 +136,14 @@ public class ElementalStateEvents {
                     target.getDisplayName().getString(), SHATTER_MULTIPLIER));
         }
 
+        // 虚空 Weaken：带虚空标记的目标受到的伤害 +15%（标记被 Volatile 消耗前生效）
+        if (targetData.getElementStacks(ElementType.VOID) > 0) {
+            event.setAmount(event.getAmount() * WEAKEN_MULTIPLIER);
+            debugChat(sourceEntity, String.format(Locale.ROOT,
+                    "[元素调试] Weaken: %s 带虚空标记, 伤害 x%.2f",
+                    target.getDisplayName().getString(), WEAKEN_MULTIPLIER));
+        }
+
         // 虚空 Volatile：受击 → 爆炸（目标自身吃一半，周围吃全额）
         if (targetData.getElementStacks(ElementType.VOID) > 0) {
             targetData.clearElementState(ElementType.VOID);
@@ -172,7 +187,7 @@ public class ElementalStateEvents {
         }
     }
 
-    /** Jolt 连锁闪电：2 格内最多 2 个其他实体受到电弧伤害（不含玩家） */
+    /** Jolt 连锁闪电：2 格内最多 2 个其他实体受到电弧伤害 + 致盲（Blind，不含玩家） */
     private static void joltChain(LivingEntity center) {
         Level level = center.level();
         DamageSource source = center.damageSources().indirectMagic(center, null);
@@ -182,6 +197,11 @@ public class ElementalStateEvents {
                 break;
             }
             entity.hurt(source, JOLT_DAMAGE);
+            // Blind：连锁命中目标致盲 + 丢失攻击目标
+            entity.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, BLIND_DURATION, 0, false, true));
+            if (entity instanceof Mob mob) {
+                mob.setTarget(null);
+            }
             if (level instanceof ServerLevel serverLevel) {
                 serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK, entity.getX(), entity.getY() + 0.8, entity.getZ(), 6, 0.2, 0.2, 0.2, 0.05);
             }

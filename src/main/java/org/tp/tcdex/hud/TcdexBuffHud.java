@@ -41,6 +41,8 @@ public class TcdexBuffHud {
     private static float apForbidden;
     private static int apSinTicks;
     private static int apCombo;
+    /** 吞噬 buff 剩余 tick */
+    private static int devourTicks;
     /** 玩家元素状态 */
     private static final Map<ElementType, ElementStatus> ELEMENT_STATES = new EnumMap<>(ElementType.class);
 
@@ -64,6 +66,7 @@ public class TcdexBuffHud {
     /** 网络包同步入口 */
     public static void syncAll(int eagerBuff, int eagerCooldown,
                                byte mode, float forbidden, int sinTicks, int combo,
+                               int devour,
                                Map<ElementType, ElementStatus> elementStates) {
         eagerBuffTicks = eagerBuff;
         eagerCooldownTicks = eagerCooldown;
@@ -71,6 +74,7 @@ public class TcdexBuffHud {
         apForbidden = forbidden;
         apSinTicks = sinTicks;
         apCombo = combo;
+        devourTicks = devour;
         ELEMENT_STATES.clear();
         ELEMENT_STATES.putAll(elementStates);
     }
@@ -156,6 +160,12 @@ public class TcdexBuffHud {
         if (apCombo > 0) {
             entries.add(new BuffEntry(Component.translatable("hud.tcdex.all_permitted.combo", apCombo),
                     0xFFFFFF40, ""));
+        }
+
+        // ===== 吞噬（Devour，虚空元素色） =====
+        if (devourTicks > 0) {
+            entries.add(new BuffEntry(Component.translatable("effect.tcdex.devour"),
+                    0xFF9B59B6, secondsText(devourTicks)));
         }
 
         // ===== 玩家元素状态 =====

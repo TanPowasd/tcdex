@@ -26,11 +26,13 @@ public class PlayerStateSyncPacket {
     private final float apForbidden;
     private final int apSinTicks;
     private final int apCombo;
+    private final int devourTicks;
     private final Map<ElementType, ElementStatus> elementStates;
 
     public PlayerStateSyncPacket(float shield, float maxShield,
                                  int eagerBuffTicks, int eagerCooldownTicks,
                                  byte apMode, float apForbidden, int apSinTicks, int apCombo,
+                                 int devourTicks,
                                  Map<ElementType, ElementStatus> elementStates) {
         this.shield = shield;
         this.maxShield = maxShield;
@@ -40,6 +42,7 @@ public class PlayerStateSyncPacket {
         this.apForbidden = apForbidden;
         this.apSinTicks = apSinTicks;
         this.apCombo = apCombo;
+        this.devourTicks = devourTicks;
         this.elementStates = elementStates;
     }
 
@@ -52,6 +55,7 @@ public class PlayerStateSyncPacket {
         buf.writeFloat(msg.apForbidden);
         buf.writeInt(msg.apSinTicks);
         buf.writeInt(msg.apCombo);
+        buf.writeInt(msg.devourTicks);
         buf.writeByte(msg.elementStates.size());
         for (Map.Entry<ElementType, ElementStatus> entry : msg.elementStates.entrySet()) {
             buf.writeByte(entry.getKey().ordinal());
@@ -69,6 +73,7 @@ public class PlayerStateSyncPacket {
         float apForbidden = buf.readFloat();
         int apSinTicks = buf.readInt();
         int apCombo = buf.readInt();
+        int devourTicks = buf.readInt();
         Map<ElementType, ElementStatus> states = new EnumMap<>(ElementType.class);
         int count = buf.readByte();
         ElementType[] values = ElementType.values();
@@ -79,7 +84,7 @@ public class PlayerStateSyncPacket {
             }
         }
         return new PlayerStateSyncPacket(shield, maxShield, eagerBuffTicks, eagerCooldownTicks,
-                apMode, apForbidden, apSinTicks, apCombo, states);
+                apMode, apForbidden, apSinTicks, apCombo, devourTicks, states);
     }
 
     public static void handle(PlayerStateSyncPacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -87,6 +92,7 @@ public class PlayerStateSyncPacket {
             PlayerShieldHud.sync(msg.shield, msg.maxShield);
             TcdexBuffHud.syncAll(msg.eagerBuffTicks, msg.eagerCooldownTicks,
                     msg.apMode, msg.apForbidden, msg.apSinTicks, msg.apCombo,
+                    msg.devourTicks,
                     msg.elementStates);
         });
         ctx.get().setPacketHandled(true);

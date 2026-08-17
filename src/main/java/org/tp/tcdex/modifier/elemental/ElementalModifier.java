@@ -5,6 +5,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
@@ -13,6 +15,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.effect.TcdexEffects;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.base.TcdexBaseModifier;
@@ -42,8 +45,11 @@ import java.util.List;
  */
 public class ElementalModifier extends TcdexBaseModifier {
 
-    /** 工具持久数据中固化的元素 key（写入后不可改变） */
-    private static final ResourceLocation ELEMENT_KEY = ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "elemental_element");
+    /** 工具持久数据中固化的元素 key（写入后不可改变；命令/API 可据此指定） */
+    public static final ResourceLocation ELEMENT_KEY = ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "elemental_element");
+
+    /** 吞噬 buff 刷新时长（tick，10 秒） */
+    private static final int DEVOUR_DURATION = 200;
 
     public ElementalModifier() {
     }
@@ -131,7 +137,8 @@ public class ElementalModifier extends TcdexBaseModifier {
         return super.getDisplayName();
     }
 
-    private static ElementType parseElement(String id) {
+    /** 按元素 id 解析元素类型（solar/arc/void/stasis/strand），无效返回 null */
+    public static ElementType parseElement(String id) {
         if (id == null || id.isEmpty()) {
             return null;
         }
@@ -187,5 +194,53 @@ public class ElementalModifier extends TcdexBaseModifier {
         }
         applyElement(getElement(persistentData), target);
         return false;
+    }
+
+    /**
+     * 击杀联动（命运2 关键词，需目标带本武器元素标记）：
+     * - 电弧：Amplified 强化（移速 + 攻速 5 秒）
+     * - 虚空：Devour 吞噬——玩家持有「吞噬」buff 时，击杀带虚空标记目标 → 回满生命 + 刷新 buff 时长
+     * - 缚丝：Woven Mail 织甲（抗性 I 5 秒，≈20% 减伤）
+     */
+    @Override
+    protected void modifierOnKillLivingTarget(IToolStackView tool, net.minecraftforge.event.entity.living.LivingDeathEvent event,
+                                              LivingEntity attacker, LivingEntity target, int level) {
+        if (event.getSource().getEntity() != attacker) {
+            return; // 只处理本工具造成的击杀
+        }
+        if (attacker.level().isClientSide) {
+            return;
+        }
+        ElementType element = parseElement(tool.getPersistentData().getString(ELEMENT_KEY));
+        if (element == null) {
+            return;
+        }
+        IElementalEntity targetData = IElementalEntity.of(target);
+        switch (element) {
+            case ARC -> {
+                if (targetData.getElementStacks(ElementType.ARC) > 0) {
+                    attacker.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 100, 1, false, true));
+                    attacker.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, 100, 1, false, true));
+                }
+            }
+            case VOID -> {
+                // 吞噬：需玩家持有「吞噬」buff 才触发
+                if (targetData.getElementStacks(ElementType.VOID) > 0 && attacker.hasEffect(TcdexEffects.DEVOUR.get())) {
+                    // 回复满生命值
+                    attacker.setHealth(attacker.getMaxHealth());
+                    // 刷新吞噬 buff 时长（保留原 amplifier）
+                    MobEffectInstance current = attacker.getEffect(TcdexEffects.DEVOUR.get());
+                    int amplifier = current != null ? current.getAmplifier() : 0;
+                    attacker.addEffect(new MobEffectInstance(TcdexEffects.DEVOUR.get(), DEVOUR_DURATION, amplifier, false, true));
+                }
+            }
+            case STRAND -> {
+                if (targetData.getElementStacks(ElementType.STRAND) > 0) {
+                    attacker.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 100, 0, false, true));
+                }
+            }
+            default -> {
+            }
+        }
     }
 }

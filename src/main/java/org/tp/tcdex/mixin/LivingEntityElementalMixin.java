@@ -215,6 +215,24 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
                     self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 40, status.stacks >= 75 ? 1 : 0, false, true));
                 }
             }
+
+            // 缚丝：满 100 层 → 悬挂（Suspend）
+            // 定身不升空：锁位移 + 停止寻路 + 强减速，目标停留在原高度，
+            // 玩家近战/远程均可正常攻击（命运2 Suspend 语义）。
+            // 不清标记——直到状态 duration 到期自然解除（期间 Sever 持续生效）
+            if (type == ElementType.STRAND && status.stacks >= ElementStatus.MAX_STACKS) {
+                self.setDeltaMovement(0, 0, 0);
+                self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 10, 5, false, true));
+                if (self instanceof net.minecraft.world.entity.Mob mob) {
+                    mob.getNavigation().stop();
+                }
+                if (level instanceof ServerLevel serverLevel && level.getGameTime() % 20 == 0) {
+                    serverLevel.sendParticles(type.getParticle(), self.getX(), self.getY() + 0.5, self.getZ(), 4, 0.3, 0.3, 0.3, 0.02);
+                }
+                if (TcdexDebug.isElementalEnabled()) {
+                    LOGGER.info("[元素调试] {} 悬挂!", self.getDisplayName().getString());
+                }
+            }
         }
     }
 
