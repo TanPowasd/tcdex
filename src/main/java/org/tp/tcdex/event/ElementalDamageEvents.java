@@ -43,6 +43,8 @@ import java.util.Locale;
  *   <li>匹配元素攻击 → 破盾效率 ×2（命运2 匹配元素破盾）</li>
  *   <li>不匹配元素 / 动能攻击 → 破盾效率 ×0.5（打得慢）</li>
  *   <li>护盾打穿 → 破盾爆炸（10% 最大生命 AOE）+ 目标获得护盾元素状态</li>
+ *   <li>棱镜盾（Boss 专属，吸收型）：见 {@link #handlePrismShield}——伤害被盾完全吸收，
+ *       破盾前打不到血量；磨损效率 棱镜 ×2 / 其他元素 ×0.5 / 动能 ×0.1</li>
  * </ul></p>
  */
 @Mod.EventBusSubscriber(modid = Tcdex.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -52,6 +54,8 @@ public class ElementalDamageEvents {
     private static final float MATCH_EFFICIENCY = 2.0f;
     /** 不匹配/动能破盾效率 */
     private static final float MISMATCH_EFFICIENCY = 0.5f;
+    /** 棱镜盾：动能磨损效率（对应"90% 减免"：盾承伤 ×10，打得最慢） */
+    private static final float PRISM_KINETIC_EFFICIENCY = 0.1f;
     /** 破盾爆炸：目标最大生命 × 10% */
     private static final float BREAK_HEALTH_PERCENT = 0.1f;
     /** 破盾爆炸半径 */
@@ -106,14 +110,14 @@ public class ElementalDamageEvents {
         // ===== 元素护盾结算（优先于伤害类型转化） =====
         IElementalEntity targetData = IElementalEntity.of(target);
         if (targetData.getShieldAmount() > 0 && targetData.getShieldElement() != null) {
-            // 棱镜盾（Boss 专属）：非棱镜攻击不扣盾——只吃减免（ElementalStateEvents），照常转化伤害类型；
-            // 只有棱镜攻击按匹配效率（×2）破盾
-            if (targetData.getShieldElement() == ElementType.PRISM && element != ElementType.PRISM) {
-                // 继续走伤害转化
-            } else {
-                handleShield(event, target, targetData, player, tool, element);
+            // 棱镜盾（Boss 专属，吸收型）：伤害被盾完全吸收，破盾前打不到血量；
+            // 磨损效率 棱镜 ×2 / 其他元素 ×0.5 / 动能 ×0.1
+            if (targetData.getShieldElement() == ElementType.PRISM) {
+                handlePrismShield(event, target, targetData, player, tool, element);
                 return;
             }
+            handleShield(event, target, targetData, player, tool, element);
+            return;
         }
 
         // ===== 伤害类型转化：动能（默认）或元素（打上元素词条） =====
@@ -180,6 +184,65 @@ public class ElementalDamageEvents {
             if (TcdexDebug.isElementalEnabled()) {
                 player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
                         "[元素调试] 护盾未破: 剩余 %.1f", targetData.getShieldAmount())));
+            }
+        }
+    }
+
+    /**
+     * 棱镜盾结算（凋零/末影龙 Boss 专属，吸收型）：
+     * 伤害被盾**完全吸收**（磨损护盾），破盾前打不到血量。
+     * 磨损效率：棱镜 ×2（匹配）/ 其他元素 ×0.5（"50% 减免"）/ 动能 ×0.1（"90% 减免"）。
+     * 打穿结算：
+     * - 棱镜伤害打穿 → 护盾永久失效（清除元素，不再回复）
+     * - 非棱镜伤害打穿 → 护盾元素保留，脱战回复可重新长满
+     * 破盾那击的溢出伤害按效率折算回真实值伤血（破盾后伤害才能打到血量）；
+     * 元素攻击保留（分配时固化，与护盾状态无关）。
+     */
+    private static void handlePrismShield(LivingHurtEvent event, LivingEntity target, IElementalEntity targetData,
+                                          Player player, ToolStack tool, ElementType attackElement) {
+        // 磨损效率：棱镜匹配 ×2；动能 ×0.1（90% 减免）；其他元素 ×0.5（50% 减免）
+        float efficiency;
+        if (attackElement == ElementType.PRISM) {
+            efficiency = MATCH_EFFICIENCY;
+        } else if (attackElement == null) {
+            efficiency = PRISM_KINETIC_EFFICIENCY;
+        } else {
+            efficiency = MISMATCH_EFFICIENCY;
+        }
+        // 元素攻击 hook 联动：工具上词条可调整破盾效率
+        efficiency = dispatchShieldEfficiency(tool, ElementType.PRISM, efficiency);
+
+        float amount = event.getAmount();
+        event.setCanceled(true);
+        target.invulnerableTime = 0;
+
+        // 受击重置脱战计时（棱镜盾回复需要脱战 10 秒）
+        targetData.markShieldHit(target.level().getGameTime());
+
+        // 伤害打入护盾（按效率磨损），返回溢出。
+        // permanent = 棱镜伤害打穿 → 清除护盾元素，永久失效（不再回复）；
+        // 非棱镜伤害打穿 → 保留护盾元素，脱战回复可重新长满。
+        boolean prismAttack = attackElement == ElementType.PRISM;
+        float overflow = targetData.consumeShield(amount * efficiency, prismAttack);
+        if (overflow > 0) {
+            // 破盾：爆炸 + 目标获得棱镜状态；元素攻击保留（分配时固化）
+            shieldBreak(target, ElementType.PRISM);
+            // 破盾那击：溢出伤害按效率折算回真实值，以攻击类型结算（破盾后伤害才能打到血量）
+            target.hurt(attackSource(player, attackElement), overflow / efficiency);
+            if (TcdexDebug.isElementalEnabled()) {
+                player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                        "[元素调试] 棱镜盾被打穿! 本击 %.2f (效率 %.2f) | 溢出伤血 %.2f | %s",
+                        amount, efficiency, overflow / efficiency,
+                        prismAttack ? "永久失效(不再回复)" : "可脱战回复")));
+            }
+        } else {
+            // 未打穿：盾全吃（破盾前打不到血量），播放受击反馈
+            Level level = target.level();
+            level.playSound(null, target.getX(), target.getY(), target.getZ(), SoundEvents.SHIELD_BLOCK, SoundSource.HOSTILE, 0.8F, 1.2F);
+            if (TcdexDebug.isElementalEnabled()) {
+                player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                        "[元素调试] 棱镜盾: 磨损 %.2f (效率 %.2f) | 剩余 %.1f",
+                        amount * efficiency, efficiency, targetData.getShieldAmount())));
             }
         }
     }

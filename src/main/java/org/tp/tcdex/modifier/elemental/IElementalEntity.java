@@ -43,15 +43,25 @@ public interface IElementalEntity {
     float getShieldAmount();
 
     /**
-     * 护盾承受伤害：扣减护盾值。
+     * 护盾承受伤害：扣减护盾值（耗尽时清除护盾元素 = 永久破盾，等价于 {@code consumeShield(damage, true)}）。
      *
-     * <p>护盾完全耗尽（归零）时清除护盾元素：棱镜盾（Boss）第一次完全破坏后不再回复，
-     * 元素攻击一并失效（攻击元素 = 护盾元素，同源）。</p>
+     * <p>护盾完全耗尽（归零）时清除护盾元素：棱镜盾（Boss）被棱镜伤害打穿后不再回复；
+     * 元素攻击保留（攻击元素在分配时固化，与护盾状态无关）。</p>
      *
      * @param damage 打入护盾的伤害（已按匹配效率换算）
      * @return 溢出伤害（护盾打穿后剩余部分），未打穿返回 0
      */
     float consumeShield(float damage);
+
+    /**
+     * 护盾承受伤害：扣减护盾值，可指定打穿后是否永久失效。
+     *
+     * @param damage    打入护盾的伤害（已按匹配效率换算）
+     * @param permanent 打穿后是否永久失效：true = 清除护盾元素（不再回复）；
+     *                  false = 保留护盾元素（棱镜盾可脱战回复重新长满）
+     * @return 溢出伤害（护盾打穿后剩余部分），未打穿返回 0
+     */
+    float consumeShield(float damage, boolean permanent);
 
     /** 破盾：清除护盾并重置初始化标记 */
     void destroyShield();
