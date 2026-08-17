@@ -11,6 +11,7 @@
   "modifier.tcdex.elemental.element.void": "虚空",
   "modifier.tcdex.elemental.element.stasis": "冰影",
   "modifier.tcdex.elemental.element.strand": "缚丝",
+  "modifier.tcdex.elemental.element.prism": "棱镜",
   "modifier.tcdex.elemental.tooltip.element": "元素: %s",
   "modifier.tcdex.elemental.tooltip.uncharged": "元素: 未充能（收入物品栏后确定）",
   "effect.tcdex.devour": "吞噬",
@@ -33,6 +34,7 @@
   "death.attack.tcdex.void": "%1$s 被虚空吞噬",
   "death.attack.tcdex.stasis": "%1$s 被冰影冻结粉碎",
   "death.attack.tcdex.strand": "%1$s 被缚丝缠绕撕裂",
+  "death.attack.tcdex.prism": "%1$s 被棱镜之光折射湮灭",
   "tooltip.tcdex.light_level": "光等: %s",
   "command.tcdex.setlight.success": "已将主手装备光等设置为 %s",
   "command.tcdex.setlight.not_tool": "主手物品必须是匠魂工具或盔甲",
@@ -45,5 +47,6 @@
   "command.tcdex.debug.element.disabled": "元素调试输出已关闭",
   "command.tcdex.setelement.success": "已将主手武器的元素充能指定为 %s",
   "command.tcdex.setelement.invalid": "未知元素: %s（可选: solar/arc/void/stasis/strand）",
+  "command.tcdex.setelement.prism_disabled": "棱镜无法通过元素充能获得（Boss 专属）",
   "command.tcdex.setelement.no_modifier": "主手武器没有元素充能词条"
 }

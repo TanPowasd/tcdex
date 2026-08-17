@@ -90,7 +90,7 @@ public class Config {
     // 元素护盾黑名单（绝对不带元素盾的生物，兼容其他 mod，entity id 匹配）
     private static final ForgeConfigSpec.ConfigValue<List<? extends String>> SHIELD_BLACKLIST = BUILDER
             .comment(
-                    "Entities that never get an elemental shield.",
+                    "Entities that never get an elemental shield (also: no elemental attacks, since attack element = shield element).",
                     "Format: modid:entity, e.g. minecraft:slime, othermod:boss",
                     "Applies to monsters from any mod (matched by registry name)."
             )
@@ -112,6 +112,9 @@ public class Config {
     private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_STRAND = BUILDER
             .comment("Relative weight for Strand shields on random assignment.")
             .defineInRange("shieldWeightStrand", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_PRISM = BUILDER
+            .comment("Relative weight for Prism shields on random assignment. Default: 0 (Prism temporarily excluded from random shields).")
+            .defineInRange("shieldWeightPrism", 0, 0, 100);
 
     // 元素充能随机元素权重（相对权重，0 = 不会随机到该元素）
     private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_SOLAR = BUILDER
@@ -129,6 +132,9 @@ public class Config {
     private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_STRAND = BUILDER
             .comment("Relative weight for Strand when Elemental Charge rolls an element.")
             .defineInRange("elementWeightStrand", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_PRISM = BUILDER
+            .comment("Relative weight for Prism when Elemental Charge rolls an element. Default: 0 (players cannot get Prism damage via the Elemental Charge modifier).")
+            .defineInRange("elementWeightPrism", 0, 0, 100);
 
     // 世界光等场：出生点附近基线
     private static final ForgeConfigSpec.IntValue WORLD_BASE_LIGHT = BUILDER
@@ -235,6 +241,17 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue PLAYER_BUFF_HUD = BUILDER
             .comment("Show Destiny 2 style buff list HUD (eager edge, all permitted, elemental states).")
             .define("playerBuffHud", true);
+    private static final ForgeConfigSpec.BooleanValue MONSTER_SHIELD_HUD = BUILDER
+            .comment("Show monster elemental shield HUD (name tag marker + crosshair shield bar).")
+            .define("monsterShieldHud", true);
+
+    // 元素怪物：怪物元素攻击（命中玩家时施加元素状态）
+    private static final ForgeConfigSpec.BooleanValue MONSTER_ELEMENTAL_ATTACKS = BUILDER
+            .comment("Monsters with elemental attacks (from the attack table) apply their element state to players on hit.")
+            .define("monsterElementalAttacks", true);
+    private static final ForgeConfigSpec.DoubleValue MONSTER_ELEMENTAL_ATTACK_CHANCE = BUILDER
+            .comment("Chance per hit for an elemental monster attack to apply its element state (0-1). Default: 1.0 (always applies).")
+            .defineInRange("monsterElementalAttackChance", 1.0, 0.0, 1.0);
 
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
@@ -244,6 +261,7 @@ public class Config {
     public static Set<Item> items;
     public static boolean playerShieldHud;
     public static boolean playerBuffHud;
+    public static boolean monsterShieldHud;
 
     private static boolean validateItemName(final Object obj) {
         if (!(obj instanceof final String itemName)) {
@@ -282,6 +300,7 @@ public class Config {
         shieldWeights.put(ElementType.VOID, SHIELD_WEIGHT_VOID.get());
         shieldWeights.put(ElementType.STASIS, SHIELD_WEIGHT_STASIS.get());
         shieldWeights.put(ElementType.STRAND, SHIELD_WEIGHT_STRAND.get());
+        shieldWeights.put(ElementType.PRISM, SHIELD_WEIGHT_PRISM.get());
         ElementManager.reloadShieldConfig(SHIELD_BLACKLIST.get(), shieldWeights);
         // 元素充能随机元素权重
         Map<ElementType, Integer> elementWeights = new EnumMap<>(ElementType.class);
@@ -290,12 +309,15 @@ public class Config {
         elementWeights.put(ElementType.VOID, ELEMENT_WEIGHT_VOID.get());
         elementWeights.put(ElementType.STASIS, ELEMENT_WEIGHT_STASIS.get());
         elementWeights.put(ElementType.STRAND, ELEMENT_WEIGHT_STRAND.get());
+        elementWeights.put(ElementType.PRISM, ELEMENT_WEIGHT_PRISM.get());
         ElementManager.reloadElementWeights(elementWeights);
+        ElementManager.reloadAttackConfig(MONSTER_ELEMENTAL_ATTACKS.get(), MONSTER_ELEMENTAL_ATTACK_CHANCE.get());
         PlayerShieldManager.reloadConfig(
                 PLAYER_SHIELD_ENABLED.get(), PLAYER_SHIELD_RATIO.get(),
                 PLAYER_SHIELD_REGEN_DELAY.get(), PLAYER_SHIELD_REGEN_RATE.get());
         playerShieldHud = PLAYER_SHIELD_HUD.get();
         playerBuffHud = PLAYER_BUFF_HUD.get();
+        monsterShieldHud = MONSTER_SHIELD_HUD.get();
         LightLevelManager.reloadDamageConfig(
                 DEALT_OVERLEVEL_STEP.get(), DEALT_OVERLEVEL_CAP.get(),
                 DEALT_UNDERLEVEL_STEP.get(), DEALT_UNDERLEVEL_MIN.get(),

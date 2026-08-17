@@ -45,6 +45,9 @@ public interface IElementalEntity {
     /**
      * 护盾承受伤害：扣减护盾值。
      *
+     * <p>护盾完全耗尽（归零）时清除护盾元素：棱镜盾（Boss）第一次完全破坏后不再回复，
+     * 元素攻击一并失效（攻击元素 = 护盾元素，同源）。</p>
+     *
      * @param damage 打入护盾的伤害（已按匹配效率换算）
      * @return 溢出伤害（护盾打穿后剩余部分），未打穿返回 0
      */
@@ -60,6 +63,27 @@ public interface IElementalEntity {
      * @param amount  护盾值（&lt;=0 视为无护盾）
      */
     void setShield(ElementType element, float amount);
+
+    // ===== 棱镜盾：脱战回复计时 =====
+
+    /** 记录护盾受击时间（gameTime；棱镜盾受击重置脱战计时） */
+    void markShieldHit(long gameTime);
+
+    /** 获取护盾最近一次受击时间（gameTime，未受击过为 0） */
+    long getShieldLastHurtTime();
+
+    // ===== 元素攻击（与护盾同源分配，独立于护盾状态） =====
+
+    /**
+     * 获取该实体的元素攻击类型。
+     *
+     * <p>攻击元素在护盾分配时固化（与护盾元素同源），护盾被打破（耗尽/销毁）后
+     * 仍然保留——元素攻击不随护盾消失。</p>
+     *
+     * @return 攻击元素（无护盾/黑名单生物为 null = 无元素攻击）
+     */
+    @javax.annotation.Nullable
+    ElementType getAttackElement();
 
     /** 从任意生物实体获取元素状态接口（Mixin 注入，安全转换） */
     static IElementalEntity of(LivingEntity entity) {

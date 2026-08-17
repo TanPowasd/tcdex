@@ -97,7 +97,7 @@ public class ElementalModifier extends TcdexBaseModifier {
         ElementType element = parseElement(tool.getPersistentData().getString(ELEMENT_KEY));
         if (element != null) {
             Component elementName = Component.translatable("modifier.tcdex.elemental.element." + element.getId())
-                    .withStyle(style -> style.withColor(net.minecraft.network.chat.TextColor.fromRgb(elementColor(element))));
+                    .withStyle(style -> style.withColor(net.minecraft.network.chat.TextColor.fromRgb(element.getColor())));
             tooltip.add(Component.translatable("modifier.tcdex.elemental.tooltip.element", elementName));
         } else {
             tooltip.add(Component.translatable("modifier.tcdex.elemental.tooltip.uncharged"));
@@ -118,17 +118,6 @@ public class ElementalModifier extends TcdexBaseModifier {
         if (tool instanceof ToolStack toolStack) {
             toolStack.updateStack(stack);
         }
-    }
-
-    /** 命运2 元素色（tooltip 显示用） */
-    private static int elementColor(ElementType element) {
-        return switch (element) {
-            case SOLAR -> 0xFFFF9A3C;
-            case ARC -> 0xFF5CC8FF;
-            case VOID -> 0xFF9B59B6;
-            case STASIS -> 0xFF7FD8E6;
-            case STRAND -> 0xFF8FDB6A;
-        };
     }
 
     /** 无等级词条：显示名不附带等级 */

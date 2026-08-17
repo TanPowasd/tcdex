@@ -27,5 +27,9 @@ public final class PacketHandler {
                 PlayerStateSyncPacket::encode,
                 PlayerStateSyncPacket::decode,
                 PlayerStateSyncPacket::handle);
+        CHANNEL.registerMessage(1, MonsterShieldSyncPacket.class,
+                MonsterShieldSyncPacket::encode,
+                MonsterShieldSyncPacket::decode,
+                MonsterShieldSyncPacket::handle);
     }
 }

@@ -74,6 +74,24 @@ public final class TcdexElementAPI {
         return ElementManager.getElementWeights();
     }
 
+    // ===== 元素怪物：怪物元素攻击（与元素护盾同源分配，独立于护盾状态） =====
+
+    /** 获取怪物的元素攻击类型（护盾分配时固化，护盾被打破后保留；无护盾/黑名单生物返回 null = 无元素攻击） */
+    @javax.annotation.Nullable
+    public static ElementType getMonsterAttackElement(LivingEntity entity) {
+        return IElementalEntity.of(entity).getAttackElement();
+    }
+
+    /** 怪物元素攻击是否开启 */
+    public static boolean isMonsterAttackEnabled() {
+        return ElementManager.isAttackEnabled();
+    }
+
+    /** 设置怪物元素攻击命中概率（0-1，1 = 每次命中必施加） */
+    public static void setMonsterAttackChance(float chance) {
+        ElementManager.setAttackChance(chance);
+    }
+
     // ===== 查询 =====
 
     /** 获取实体对某元素的伤害倍率（元素抗性/弱点） */

@@ -64,10 +64,9 @@ public class ElementalDamageEvents {
             return;
         }
 
-        // 已是 TCDEX 类型伤害（元素/动能/纯粹）→ 递归保护
-        if (ModDamageSources.isElementDamage(event.getSource())
-                || event.getSource().is(ModDamageSources.KINETIC_DAMAGE_TYPE)
-                || event.getSource().is(ModDamageSources.PURE_DAMAGE_TYPE)) {
+        // 已是 TCDEX 类型伤害（元素/动能/纯粹/灼烧 DoT）→ 递归保护
+        // （含 scorch：玩家自身灼烧 DoT 不能被当成"玩家攻击"重新转化/护盾结算）
+        if (ModDamageSources.isTcdexDamage(event.getSource())) {
             return;
         }
 
@@ -107,8 +106,14 @@ public class ElementalDamageEvents {
         // ===== 元素护盾结算（优先于伤害类型转化） =====
         IElementalEntity targetData = IElementalEntity.of(target);
         if (targetData.getShieldAmount() > 0 && targetData.getShieldElement() != null) {
-            handleShield(event, target, targetData, player, tool, element);
-            return;
+            // 棱镜盾（Boss 专属）：非棱镜攻击不扣盾——只吃减免（ElementalStateEvents），照常转化伤害类型；
+            // 只有棱镜攻击按匹配效率（×2）破盾
+            if (targetData.getShieldElement() == ElementType.PRISM && element != ElementType.PRISM) {
+                // 继续走伤害转化
+            } else {
+                handleShield(event, target, targetData, player, tool, element);
+                return;
+            }
         }
 
         // ===== 伤害类型转化：动能（默认）或元素（打上元素词条） =====
@@ -138,7 +143,9 @@ public class ElementalDamageEvents {
     private static void handleShield(LivingHurtEvent event, LivingEntity target, IElementalEntity targetData,
                                      Player player, ToolStack tool, ElementType attackElement) {
         ElementType shieldElement = targetData.getShieldElement();
-        float efficiency = attackElement == shieldElement ? MATCH_EFFICIENCY : MISMATCH_EFFICIENCY;
+        // 棱镜折射所有光 = 匹配所有盾：棱镜攻击对任意元素护盾都按匹配效率（×2）
+        float efficiency = (attackElement == shieldElement || attackElement == ElementType.PRISM)
+                ? MATCH_EFFICIENCY : MISMATCH_EFFICIENCY;
         // 元素攻击 hook 联动：工具上词条可调整破盾效率
         efficiency = dispatchShieldEfficiency(tool, shieldElement, efficiency);
 

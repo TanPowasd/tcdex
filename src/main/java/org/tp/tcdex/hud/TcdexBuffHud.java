@@ -46,13 +46,6 @@ public class TcdexBuffHud {
     /** 玩家元素状态 */
     private static final Map<ElementType, ElementStatus> ELEMENT_STATES = new EnumMap<>(ElementType.class);
 
-    /** 元素图标颜色（命运2 元素色） */
-    private static final int COLOR_SOLAR = 0xFFFF9A3C;
-    private static final int COLOR_ARC = 0xFF5CC8FF;
-    private static final int COLOR_VOID = 0xFF9B59B6;
-    private static final int COLOR_STASIS = 0xFF7FD8E6;
-    private static final int COLOR_STRAND = 0xFF8FDB6A;
-
     /** 整体缩放（图标 + 文字一起缩小） */
     private static final float SCALE = 0.7f;
     /** 图标色块尺寸 */
@@ -175,15 +168,8 @@ public class TcdexBuffHud {
             if (status.duration <= 0) {
                 continue;
             }
-            int color = switch (element) {
-                case SOLAR -> COLOR_SOLAR;
-                case ARC -> COLOR_ARC;
-                case VOID -> COLOR_VOID;
-                case STASIS -> COLOR_STASIS;
-                case STRAND -> COLOR_STRAND;
-            };
             Component name = Component.translatable("modifier.tcdex.elemental.element." + element.getId());
-            entries.add(new BuffEntry(name, color, secondsText(status.duration)));
+            entries.add(new BuffEntry(name, element.getColor(), secondsText(status.duration)));
         }
 
         return entries;

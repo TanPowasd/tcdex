@@ -276,7 +276,9 @@ public class LightLevelEvents {
                                 .then(Commands.argument("element", StringArgumentType.word())
                                         .suggests((ctx, builder) -> {
                                             for (ElementType type : ElementType.values()) {
-                                                builder.suggest(type.getId());
+                                                if (type != ElementType.PRISM) { // 棱镜不可通过元素充能获得
+                                                    builder.suggest(type.getId());
+                                                }
                                             }
                                             return builder.buildFuture();
                                         })
@@ -286,6 +288,10 @@ public class LightLevelEvents {
                                             ElementType element = ElementalModifier.parseElement(elementId);
                                             if (element == null) {
                                                 ctx.getSource().sendFailure(Component.translatable("command.tcdex.setelement.invalid", elementId));
+                                                return 0;
+                                            }
+                                            if (element == ElementType.PRISM) {
+                                                ctx.getSource().sendFailure(Component.translatable("command.tcdex.setelement.prism_disabled"));
                                                 return 0;
                                             }
                                             ItemStack stack = player.getMainHandItem();

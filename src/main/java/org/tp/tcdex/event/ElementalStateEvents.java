@@ -22,6 +22,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
@@ -64,10 +65,20 @@ public class ElementalStateEvents {
     private static final int BLIND_DURATION = 60;
     /** 护盾量占最大生命的比例 */
     private static final float SHIELD_HEALTH_PERCENT = 0.5f;
+    /** 怪物元素攻击施加的层数缩放（怪物命中比玩家武器保守，标记型元素保底 1 层） */
+    private static final float MONSTER_STACK_SCALE = 0.4f;
+    /** 棱镜 Refract：带标记目标受击时溅射本击伤害的比例 */
+    private static final float REFRACT_SPLASH_RATIO = 0.25f;
+    /** 棱镜折射溅射半径 */
+    private static final float REFRACT_RADIUS = 2.0f;
+    /** 棱镜盾：非棱镜伤害减免倍率（50% 减免） */
+    private static final float PRISM_SHIELD_REDUCTION = 0.5f;
+    /** 棱镜盾：动能伤害减免倍率（90% 减免） */
+    private static final float PRISM_SHIELD_KINETIC_REDUCTION = 0.1f;
 
     /**
      * 怪物生成时分配元素护盾。
-     * 分配链：黑名单（绝对无盾）→ 附属 mod 提供器 → 静态表指定 → 加权随机。
+     * 分配链：黑名单（绝对无盾）→ 附属 mod 提供器 → 加权随机（无静态表指定）。
      */
     @SubscribeEvent
     public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
@@ -81,10 +92,7 @@ public class ElementalStateEvents {
         if (!ElementManager.isShieldBlacklisted(living)) {
             element = ElementManager.getProviderShieldElement(living);
             if (element == null) {
-                element = ElementManager.getShieldElement(living);
-                if (element == null) {
-                    element = ElementManager.rollShieldElement(living.getRandom());
-                }
+                element = ElementManager.rollShieldElement(living.getRandom());
             }
         }
         if (element != null) {
@@ -164,6 +172,71 @@ public class ElementalStateEvents {
                     "[元素调试] Jolt: %s 连锁闪电!",
                     target.getDisplayName().getString()));
         }
+
+        // 棱镜 Refract：受击 → 本击 25% 伤害折射溅射周围（不含玩家），清除标记
+        if (targetData.getElementStacks(ElementType.PRISM) > 0) {
+            targetData.clearElementState(ElementType.PRISM);
+            float splash = event.getAmount() * REFRACT_SPLASH_RATIO;
+            if (splash > 0.5f) {
+                refractAround(target, splash);
+            }
+            debugChat(sourceEntity, String.format(Locale.ROOT,
+                    "[元素调试] Refract: %s 棱镜折射! 溅射 %.2f",
+                    target.getDisplayName().getString(), splash));
+        }
+    }
+
+    /**
+     * 元素怪物：带元素护盾的怪物（攻击元素 = 护盾元素，同源）命中玩家时，
+     * 按概率给玩家施加对应元素状态（灼烧/减速冻结/标记……）。
+     *
+     * <p>玩家元素状态由 PlayerStateSyncPacket 自动同步到 Buff HUD，
+     * 关键词联动（Shatter / Volatile / Weaken / Jolt / Sever）对玩家照常生效。</p>
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onMonsterAttackPlayer(LivingHurtEvent event) {
+        LivingEntity target = event.getEntity();
+        Level level = target.level();
+        if (level.isClientSide) {
+            return;
+        }
+        if (!(target instanceof Player)) {
+            return; // 只对玩家施加（元素怪物攻击目标为玩家）
+        }
+        if (!ElementManager.isAttackEnabled()) {
+            return;
+        }
+        // 伤害来源：近战为怪物本人，远程为射出弹射物的怪物（箭/火球/光束）
+        Entity causer = event.getSource().getEntity();
+        if (!(causer instanceof LivingEntity attacker) || attacker instanceof Player) {
+            return;
+        }
+        // 元素攻击与元素护盾同源分配，攻击元素在护盾分配时固化；
+        // 黑名单生物无护盾 → 无元素攻击；护盾被打破后攻击元素保留
+        if (ElementManager.isShieldBlacklisted(attacker)) {
+            return;
+        }
+        ElementType element = IElementalEntity.of(attacker).getAttackElement();
+        if (element == null) {
+            return;
+        }
+        // 命中概率（1.0 = 每次命中必施加）
+        if (ElementManager.getAttackChance() < 1.0f && level.random.nextFloat() >= ElementManager.getAttackChance()) {
+            return;
+        }
+
+        // 施加元素状态：层数按怪物系数缩放（标记型元素保底 1 层），时长同玩家武器
+        float stacks = Math.max(1.0f, element.getStacksPerHit() * MONSTER_STACK_SCALE);
+        IElementalEntity.of(target).addElementState(element, stacks, element.getStateDuration());
+
+        // 粒子反馈
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(element.getParticle(), target.getX(), target.getY() + 1.0, target.getZ(), 12, 0.3, 0.3, 0.3, 0.1);
+        }
+        debugChat(target, String.format(Locale.ROOT,
+                "[元素调试] 元素怪物 %s 命中 %s, 施加 %s 状态 (%.0f 层)",
+                attacker.getDisplayName().getString(), target.getDisplayName().getString(),
+                element.getId(), stacks));
     }
 
     /** 目标死亡时清理元素状态（避免残留） */
@@ -172,6 +245,48 @@ public class ElementalStateEvents {
         if (!event.getEntity().level().isClientSide) {
             IElementalEntity.of(event.getEntity()).getAllElementStates().clear();
         }
+    }
+
+    /**
+     * 棱镜盾减免（凋零 / 末影龙 Boss 专属）：
+     * <ul>
+     *   <li>棱镜伤害：不减免（匹配破盾结算，见 ElementalDamageEvents.handleShield）</li>
+     *   <li>动能伤害：减免 90%（×0.1）</li>
+     *   <li>其他非棱镜伤害：减免 50%（×0.5）</li>
+     * </ul>
+     * 任何伤害都重置脱战计时（棱镜盾回复需要脱战 10 秒）。
+     * NORMAL 优先级：在 ElementalDamageEvents（HIGHEST）元素转化 / rehurt 之后处理最终伤害；
+     * 被转化的原伤害事件已取消，直接跳过。
+     */
+    @SubscribeEvent(priority = EventPriority.NORMAL)
+    public static void onPrismShieldDamage(LivingHurtEvent event) {
+        LivingEntity target = event.getEntity();
+        Level level = target.level();
+        if (level.isClientSide || event.isCanceled()) {
+            return;
+        }
+        IElementalEntity targetData = IElementalEntity.of(target);
+        if (targetData.getShieldElement() != ElementType.PRISM || targetData.getShieldAmount() <= 0) {
+            return;
+        }
+
+        // 任何伤害都重置棱镜盾脱战计时
+        targetData.markShieldHit(level.getGameTime());
+
+        // 棱镜伤害不减免（匹配破盾结算）
+        if (event.getSource().is(ModDamageSources.PRISM_DAMAGE_TYPE)) {
+            return;
+        }
+
+        // 动能伤害减免 90%，其余非棱镜伤害减免 50%
+        float original = event.getAmount();
+        float reduction = event.getSource().is(ModDamageSources.KINETIC_DAMAGE_TYPE)
+                ? PRISM_SHIELD_KINETIC_REDUCTION : PRISM_SHIELD_REDUCTION;
+        event.setAmount(original * reduction);
+        debugChat(event.getSource().getEntity(), String.format(Locale.ROOT,
+                "[元素调试] 棱镜盾: %s 减免 %.0f%% (%.2f → %.2f)",
+                target.getDisplayName().getString(), (1.0f - reduction) * 100.0f,
+                original, event.getAmount()));
     }
 
     /** Volatile 爆炸：对周围实体造成伤害（不包含自身与玩家，命运2：挥发爆炸不伤玩家） */
@@ -206,6 +321,18 @@ public class ElementalStateEvents {
                 serverLevel.sendParticles(ParticleTypes.ELECTRIC_SPARK, entity.getX(), entity.getY() + 0.8, entity.getZ(), 6, 0.2, 0.2, 0.2, 0.05);
             }
             count++;
+        }
+    }
+
+    /** 棱镜折射溅射：对周围生物造成本击部分伤害（不含玩家，命运2 语义） */
+    private static void refractAround(LivingEntity center, float damage) {
+        Level level = center.level();
+        DamageSource source = center.damageSources().indirectMagic(center, null);
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, center.getBoundingBox().inflate(REFRACT_RADIUS), e -> e != center && e.isAlive() && !(e instanceof Player))) {
+            entity.hurt(source, damage);
+        }
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(ParticleTypes.FIREWORK, center.getX(), center.getY() + 0.5, center.getZ(), 8, 0.3, 0.3, 0.3, 0.02);
         }
     }
 }

@@ -21,6 +21,9 @@ import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.network.MonsterShieldSyncPacket;
+import org.tp.tcdex.network.PacketHandler;
+import net.minecraftforge.network.PacketDistributor;
 
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -59,9 +62,31 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     @Unique
     private float tcdex$shieldAmount;
 
+    /** 元素攻击元素：护盾分配时固化（与护盾同源），护盾被打破后保留（元素攻击不随护盾消失） */
+    @Unique
+    private ElementType tcdex$attackElement;
+
     /** 元素护盾：是否已从护盾表初始化 */
     @Unique
     private boolean tcdex$shieldInit;
+
+    /** 棱镜盾：最近一次受击 gameTime（脱战回复计时） */
+    @Unique
+    private long tcdex$lastShieldHitTime;
+
+    /** 棱镜盾：回复计时器（每 5 tick 一跳） */
+    @Unique
+    private int tcdex$shieldRegenCounter;
+
+    /** 棱镜盾：脱战延迟（tick，10 秒） */
+    @Unique
+    private static final int PRISM_SHIELD_REGEN_DELAY = 200;
+    /** 棱镜盾：回复周期（每 5 tick 一跳） */
+    @Unique
+    private static final int PRISM_SHIELD_REGEN_CYCLE = 5;
+    /** 棱镜盾：每跳回复 = 最大护盾值 × 10% */
+    @Unique
+    private static final float PRISM_SHIELD_REGEN_PERCENT = 0.1f;
 
     // ===== IElementalEntity 实现 =====
 
@@ -113,6 +138,12 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
         tcdex$initShield();
         float overflow = Math.max(0.0f, damage - tcdex$shieldAmount);
         tcdex$shieldAmount = Math.max(0.0f, tcdex$shieldAmount - damage);
+        // 护盾完全耗尽（完全破坏）：清除护盾元素——棱镜盾（Boss）第一次完全破坏后不再回复；
+        // 攻击元素保留（固化于分配时，不随护盾消失）
+        if (tcdex$shieldAmount <= 0 && tcdex$shieldElement != null) {
+            tcdex$shieldElement = null;
+        }
+        tcdex$broadcastShield();
         return overflow;
     }
 
@@ -121,17 +152,50 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
         tcdex$shieldElement = null;
         tcdex$shieldAmount = 0.0f;
         tcdex$shieldInit = true;
+        tcdex$broadcastShield();
+        // 注意：攻击元素保留（固化于分配时，不随护盾销毁而消失）
     }
 
     @Override
     public void setShield(ElementType element, float amount) {
         tcdex$shieldElement = element;
+        tcdex$attackElement = element; // 攻击元素与护盾同源，分配时固化
         tcdex$shieldAmount = Math.max(0.0f, amount);
         tcdex$shieldInit = true;
+        tcdex$broadcastShield();
+    }
+
+    @Override
+    public ElementType getAttackElement() {
+        tcdex$initShield(); // 保证攻击元素已随护盾初始化（与护盾同源分配）
+        return tcdex$attackElement;
+    }
+
+    @Override
+    public void markShieldHit(long gameTime) {
+        tcdex$lastShieldHitTime = gameTime;
+    }
+
+    @Override
+    public long getShieldLastHurtTime() {
+        return tcdex$lastShieldHitTime;
+    }
+
+    /** 护盾变化广播给追踪该实体的玩家（客户端 HUD 缓存显示） */
+    @Unique
+    private void tcdex$broadcastShield() {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self.level().isClientSide) {
+            return;
+        }
+        PacketHandler.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> self),
+                new MonsterShieldSyncPacket(self.getId(),
+                        (byte) (tcdex$shieldElement != null ? tcdex$shieldElement.ordinal() + 1 : 0),
+                        tcdex$shieldAmount));
     }
 
     /**
-     * 懒加载兜底：静态表覆盖 → 敌对生物随机护盾 → 其余无盾。
+     * 懒加载兜底：敌对生物加权随机护盾，其余无盾。
      * 正常情况下生成时已由 ElementalStateEvents 分配（setShield），此处仅兜底。
      */
     @Unique
@@ -141,14 +205,19 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
         }
         tcdex$shieldInit = true;
         LivingEntity self = (LivingEntity) (Object) this;
-        ElementType element = ElementManager.getShieldElement(self);
-        if (element == null && ElementManager.isMonster(self)) {
-            element = ElementManager.rollShieldElement(self.getRandom());
+        // 黑名单生物绝对无盾（含懒加载路径：防止被攻击/查询时兜底分配护盾）
+        if (ElementManager.isShieldBlacklisted(self)) {
+            return;
         }
+        ElementType element = ElementManager.isMonster(self)
+                ? ElementManager.rollShieldElement(self.getRandom())
+                : null;
         if (element != null) {
             tcdex$shieldElement = element;
+            tcdex$attackElement = element; // 攻击元素同源固化
             // 护盾量 = 最大生命 × 50%（命运2 固定比例护盾）
             tcdex$shieldAmount = self.getMaxHealth() * 0.5f;
+            tcdex$broadcastShield();
         }
     }
 
@@ -232,6 +301,24 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
                 if (TcdexDebug.isElementalEnabled()) {
                     LOGGER.info("[元素调试] {} 悬挂!", self.getDisplayName().getString());
                 }
+            }
+        }
+
+        // ===== 棱镜盾：脱战回复 =====
+        // 受击（markShieldHit）后 10 秒未受伤 → 每 5 tick 回复 10% 最大护盾值（Boss 棱镜盾专属）。
+        // 护盾第一次完全破坏时元素已被清除（consumeShield），此分支永久不成立 → 不再回复。
+        if (tcdex$shieldElement == ElementType.PRISM && tcdex$shieldAmount > 0) {
+            float maxShield = self.getMaxHealth() * 0.5f;
+            if (tcdex$shieldAmount < maxShield
+                    && level.getGameTime() - tcdex$lastShieldHitTime >= PRISM_SHIELD_REGEN_DELAY) {
+                tcdex$shieldRegenCounter++;
+                if (tcdex$shieldRegenCounter >= PRISM_SHIELD_REGEN_CYCLE) {
+                    tcdex$shieldRegenCounter = 0;
+                    tcdex$shieldAmount = Math.min(maxShield, tcdex$shieldAmount + maxShield * PRISM_SHIELD_REGEN_PERCENT);
+                    tcdex$broadcastShield();
+                }
+            } else {
+                tcdex$shieldRegenCounter = 0;
             }
         }
     }

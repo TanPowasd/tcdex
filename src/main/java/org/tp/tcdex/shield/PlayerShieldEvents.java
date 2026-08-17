@@ -40,10 +40,8 @@ public class PlayerShieldEvents {
         if (event.getEntity().level().isClientSide) {
             return;
         }
-        // 跳过 TCDEX 类型伤害（防元素转化 rehurt 重复吸收）
-        if (ModDamageSources.isElementDamage(event.getSource())
-                || event.getSource().is(ModDamageSources.KINETIC_DAMAGE_TYPE)
-                || event.getSource().is(ModDamageSources.PURE_DAMAGE_TYPE)) {
+        // 跳过 TCDEX 类型伤害（防元素转化 rehurt 重复吸收；灼烧 DoT 直伤生命，不耗玩家护盾）
+        if (ModDamageSources.isTcdexDamage(event.getSource())) {
             return;
         }
 

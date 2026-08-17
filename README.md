@@ -80,7 +80,7 @@ public static final boolean TCDEX_LOADED = ModList.get().isLoaded("tcdex");
 public class MyCompat {
     public static void init() {
         TcdexElementAPI.registerShieldProvider(entity -> {
-            // 返回 null = 不接管（交给黑名单/静态表/加权随机）
+            // 返回 null = 不接管（交给黑名单/加权随机）
             if (entity.getType() == Registries.ENTITY_TYPES.get(new ResourceLocation("twilightforest:naga"))) {
                 return ElementType.ARC;  // 娜迦固定电弧盾
             }
@@ -90,14 +90,14 @@ public class MyCompat {
 }
 ```
 
-分配优先级：**黑名单（绝对无盾）→ 提供器 → 静态表 → 加权随机**。
+分配优先级：**黑名单（绝对无盾）→ 提供器 → 加权随机**（无静态表指定）。
 
 ### 2.2 护盾黑名单（不让某些生物带盾）
 
 ```java
 TcdexElementAPI.addShieldBlacklist("minecraft:slime");   // entity id，兼容任意 mod 生物
 TcdexElementAPI.removeShieldBlacklist("minecraft:slime");
-boolean noShield = TcdexElementAPI.isShieldBlacklisted(entity);
+boolean noShield = TcdexElementAPI.isShieldBlacklisted(entity);   // 黑名单生物同时没有元素攻击
 ```
 
 ### 2.3 生成比例（运行时调整）
@@ -151,6 +151,36 @@ boolean isElemental = ModDamageSources.isElementDamage(source);
 ```
 
 > ⚠️ 元素伤害类型与护盾/转化系统联动：对带护盾目标使用元素伤害源，会按"匹配/不匹配"效率结算破盾。
+
+### 2.7 元素怪物攻击（命中玩家施加元素状态）
+
+**元素的攻击与护盾同源分配**：任何带元素护盾的怪物（护盾分配链：黑名单 → 提供器 → 加权随机，
+无静态表指定），其攻击命中玩家时也会施加与护盾**相同元素**的状态（冰霜箭减速/冻结、
+电弧光束、虚空火球……）。攻击元素在护盾分配时**固化**：无盾生物没有元素攻击，
+**护盾被打破后元素攻击保留**（只失去护盾，不失去元素能力）。
+
+命中玩家时按 `monsterElementalAttackChance`（默认 1.0，配置可调）施加对应元素状态
+（层数按怪物系数缩放，标记型元素保底 1 层；时长同玩家武器），元素状态会同步到玩家 Buff HUD，
+Shatter / Volatile / Weaken / Jolt 等关键词对玩家同样生效。总开关 `monsterElementalAttacks`（默认 true）。
+
+```java
+// 查询怪物的元素攻击类型（= 其护盾元素，null = 无）
+ElementType attack = TcdexElementAPI.getMonsterAttackElement(entity);
+```
+
+### 2.8 棱镜盾（凋零 / 末影龙 100%）
+
+凋零与末影龙生成时**必定**携带棱镜护盾（内置护盾提供器，护盾量 = 最大生命 × 50%），棱镜盾效果：
+
+| 伤害类型 | 效果 |
+|---|---|
+| 棱镜伤害 | 不减免，按匹配效率（×2）扣盾破盾（但玩家目前无法获得棱镜伤害） |
+| 动能伤害 | **减免 90%** |
+| 其他非棱镜伤害 | **减免 50%** |
+| 脱战回复 | 10 秒未受伤后，每 5 tick 回复 10% 最大护盾值 |
+
+棱镜盾**不会**因非棱镜伤害扣减——只有棱镜伤害能打穿它。护盾**第一次完全破坏后永久失效**：
+不再回复、伤害减免消失（护盾耗尽即清除护盾元素）；但 Boss 的**元素攻击保留**（攻击元素在分配时固化，不随护盾消失）。
 
 ---
 
@@ -384,6 +414,7 @@ IElementalEntity data = IElementalEntity.of(entity);   // 直接强转，无需�
 | 虚空 VOID | `void` | 标记型（+1） | 受击 → Volatile 爆炸（10% 最大生命 AOE） |
 | 冰影 STASIS | `stasis` | 每击 +50 层 | ≥50 减速 → 满 100 冻结；冻结中受击 Shatter +50% |
 | 缚丝 STRAND | `strand` | 标记型（+1） | 带标记者造成伤害 -40%（Sever） |
+| 棱镜 PRISM | `prism` | 标记型（+1） | 受击 Refract 折射：本击 25% 伤害溅射周围；棱镜攻击破任意元素盾（匹配效率 ×2，折射所有光）。**玩家无法通过元素充能词条获得（Boss 专属）** |
 
 元素爆炸/连锁**均不伤害玩家**（命运2 语义）；`AllPermittedModifier` 超载除外（有意设计）。
 
@@ -408,9 +439,15 @@ timeSpreadStart = 2000          # 出生点安全区
 timeSpreadEnd = 10000
 
 # 护盾与元素权重
-shieldBlacklist = []            # 不带元素盾的生物（modid:entity）
+shieldBlacklist = []            # 不带元素盾/元素攻击的生物（modid:entity）
 shieldWeightSolar/Arc/Void/Stasis/Strand = 1
+shieldWeightPrism = 0           # 棱镜暂不参与随机盾
 elementWeightSolar/Arc/Void/Stasis/Strand = 1
+elementWeightPrism = 0          # 棱镜不可通过元素充能获得（Boss 专属）
+
+# 元素怪物攻击
+monsterElementalAttacks = true  # 怪物元素攻击总开关
+monsterElementalAttackChance = 1.0  # 每次命中施加元素状态的概率（0-1）
 
 # 玩家护盾
 playerShieldEnabled = true

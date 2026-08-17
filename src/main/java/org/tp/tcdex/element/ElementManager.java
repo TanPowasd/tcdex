@@ -48,51 +48,47 @@ public final class ElementManager {
         RESISTANCES.put("minecraft:wither", wither);
     }
 
-    /** 元素护盾表：entity id → 护盾元素（护盾量 = 最大生命 × 50%，命运2 固定比例） */
-    private static final Map<String, ElementType> SHIELDS = new HashMap<>();
+    // 护盾分配链 = 黑名单（绝对无盾）→ 提供器 → 加权随机（已取消静态表指定）
 
-    static {
-        // 烈焰人/岩浆怪/末影人：虚空护盾
-        SHIELDS.put("minecraft:blaze", ElementType.VOID);
-        SHIELDS.put("minecraft:magma_cube", ElementType.VOID);
-        SHIELDS.put("minecraft:enderman", ElementType.VOID);
-        // 雪傀儡：烈日护盾（灼烧克冰）
-        SHIELDS.put("minecraft:snow_golem", ElementType.SOLAR);
-        // 凋灵：冰影护盾
-        SHIELDS.put("minecraft:wither", ElementType.STASIS);
-        // 常见敌对生物（方便验证/覆盖更多战斗场景）
-        SHIELDS.put("minecraft:zombie", ElementType.VOID);
-        SHIELDS.put("minecraft:husk", ElementType.VOID);
-        SHIELDS.put("minecraft:skeleton", ElementType.STASIS);
-        SHIELDS.put("minecraft:creeper", ElementType.ARC);
-        SHIELDS.put("minecraft:guardian", ElementType.ARC);
-        SHIELDS.put("minecraft:piglin", ElementType.SOLAR);
-        SHIELDS.put("minecraft:phantom", ElementType.STRAND);
-    }
+    /** 怪物元素攻击总开关（配置 monsterElementalAttacks；攻击元素 = 护盾元素，同源） */
+    private static boolean attackEnabled = true;
+    /** 怪物元素攻击命中概率（0-1，配置 monsterElementalAttackChance；1 = 每次命中必施加） */
+    private static float attackChance = 1.0f;
 
     /** 护盾黑名单：这些生物永远不带元素盾（兼容其他 mod 生物，用 entity id 匹配） */
     private static final Set<String> SHIELD_BLACKLIST = new HashSet<>();
 
-    /** 元素盾生成权重（默认各 1，0 = 不生成该元素盾） */
+    /** 元素盾生成权重（默认各 1，0 = 不生成该元素盾；棱镜暂不参与随机盾） */
     private static final Map<ElementType, Integer> SHIELD_WEIGHTS = new EnumMap<>(ElementType.class);
 
     static {
         for (ElementType type : ElementType.values()) {
-            SHIELD_WEIGHTS.put(type, 1);
+            SHIELD_WEIGHTS.put(type, type == ElementType.PRISM ? 0 : 1);
         }
     }
 
-    /** 元素充能随机元素权重（默认各 1，0 = 不会随机到该元素） */
+    /** 元素充能随机元素权重（默认各 1，0 = 不会随机到该元素；棱镜不可通过元素充能词条获得） */
     private static final Map<ElementType, Integer> ELEMENT_WEIGHTS = new EnumMap<>(ElementType.class);
 
     static {
         for (ElementType type : ElementType.values()) {
-            ELEMENT_WEIGHTS.put(type, 1);
+            ELEMENT_WEIGHTS.put(type, type == ElementType.PRISM ? 0 : 1);
         }
     }
 
-    /** 附属 mod 注册的护盾提供器（优先级高于静态表/随机，低于黑名单） */
+    /** 附属 mod 注册的护盾提供器（优先级高于加权随机，低于黑名单） */
     private static final List<IElementShieldProvider> SHIELD_PROVIDERS = new ArrayList<>();
+
+    static {
+        // 内置：凋零 / 末影龙 100% 棱镜盾（Boss 专属；棱镜盾 = 非棱镜伤害减免 + 脱战回复）
+        registerShieldProvider(entity -> {
+            ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
+            if (key != null && ("minecraft:wither".equals(key.toString()) || "minecraft:ender_dragon".equals(key.toString()))) {
+                return ElementType.PRISM;
+            }
+            return null;
+        });
+    }
 
     private ElementManager() {
     }
@@ -108,7 +104,8 @@ public final class ElementManager {
             SHIELD_WEIGHTS.putAll(weights);
         }
         for (ElementType type : ElementType.values()) {
-            SHIELD_WEIGHTS.putIfAbsent(type, 1);
+            // 配置缺项时兜底：棱镜默认不参与随机盾
+            SHIELD_WEIGHTS.putIfAbsent(type, type == ElementType.PRISM ? 0 : 1);
         }
     }
 
@@ -149,6 +146,29 @@ public final class ElementManager {
         return key != null && SHIELD_BLACKLIST.contains(key.toString());
     }
 
+    // ===== 元素怪物：元素攻击（与元素护盾同源） =====
+
+    /** 怪物元素攻击是否开启 */
+    public static boolean isAttackEnabled() {
+        return attackEnabled;
+    }
+
+    /** 当前怪物元素攻击命中概率（0-1） */
+    public static float getAttackChance() {
+        return attackChance;
+    }
+
+    /** 设置怪物元素攻击命中概率（钳制 0-1） */
+    public static void setAttackChance(float chance) {
+        attackChance = Math.max(0.0f, Math.min(1.0f, chance));
+    }
+
+    /** 从配置重载怪物元素攻击开关与命中概率 */
+    public static void reloadAttackConfig(boolean enabled, double chance) {
+        attackEnabled = enabled;
+        attackChance = (float) Math.max(0.0, Math.min(1.0, chance));
+    }
+
     public static void setShieldWeight(ElementType element, int weight) {
         SHIELD_WEIGHTS.put(element, Math.max(0, weight));
     }
@@ -169,16 +189,6 @@ public final class ElementManager {
         return 1.0f;
     }
 
-    /** 获取实体的元素护盾类型（静态表"指定覆盖"，无则返回 null） */
-    @javax.annotation.Nullable
-    public static ElementType getShieldElement(LivingEntity entity) {
-        ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
-        if (key != null) {
-            return SHIELDS.get(key.toString());
-        }
-        return null;
-    }
-
     /** 从配置重载元素充能随机权重 */
     public static void reloadElementWeights(Map<ElementType, Integer> weights) {
         ELEMENT_WEIGHTS.clear();
@@ -186,7 +196,8 @@ public final class ElementManager {
             ELEMENT_WEIGHTS.putAll(weights);
         }
         for (ElementType type : ElementType.values()) {
-            ELEMENT_WEIGHTS.putIfAbsent(type, 1);
+            // 配置缺项时兜底：棱镜默认不参与元素充能随机
+            ELEMENT_WEIGHTS.putIfAbsent(type, type == ElementType.PRISM ? 0 : 1);
         }
     }
 

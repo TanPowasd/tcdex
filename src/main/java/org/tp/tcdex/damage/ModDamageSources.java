@@ -30,6 +30,7 @@ public final class ModDamageSources {
     public static final ResourceKey<DamageType> VOID_DAMAGE_TYPE = elementKey("void");
     public static final ResourceKey<DamageType> STASIS_DAMAGE_TYPE = elementKey("stasis");
     public static final ResourceKey<DamageType> STRAND_DAMAGE_TYPE = elementKey("strand");
+    public static final ResourceKey<DamageType> PRISM_DAMAGE_TYPE = elementKey("prism");
 
     /**
      * 灼烧 DoT 伤害：带 bypasses_invulnerability tag（无视无敌帧）。
@@ -62,7 +63,15 @@ public final class ModDamageSources {
     /** 判断伤害源是否为 TCDEX 元素伤害 */
     public static boolean isElementDamage(net.minecraft.world.damagesource.DamageSource source) {
         return source.is(SOLAR_DAMAGE_TYPE) || source.is(ARC_DAMAGE_TYPE) || source.is(VOID_DAMAGE_TYPE)
-                || source.is(STASIS_DAMAGE_TYPE) || source.is(STRAND_DAMAGE_TYPE);
+                || source.is(STASIS_DAMAGE_TYPE) || source.is(STRAND_DAMAGE_TYPE) || source.is(PRISM_DAMAGE_TYPE);
+    }
+
+    /** 判断伤害源是否为 TCDEX 自定义伤害类型（元素/动能/纯粹/灼烧 DoT） */
+    public static boolean isTcdexDamage(net.minecraft.world.damagesource.DamageSource source) {
+        return isElementDamage(source)
+                || source.is(KINETIC_DAMAGE_TYPE)
+                || source.is(PURE_DAMAGE_TYPE)
+                || source.is(SCORCH_DAMAGE_TYPE);
     }
 
     /** 构造对应元素的伤害源（以攻击者为来源，死亡消息区分元素） */
@@ -73,6 +82,7 @@ public final class ModDamageSources {
             case VOID -> VOID_DAMAGE_TYPE;
             case STASIS -> STASIS_DAMAGE_TYPE;
             case STRAND -> STRAND_DAMAGE_TYPE;
+            case PRISM -> PRISM_DAMAGE_TYPE;
         };
         return new DamageSource(
                 attacker.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(key),

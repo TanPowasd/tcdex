@@ -11,6 +11,7 @@
   "modifier.tcdex.elemental.element.void": "Void",
   "modifier.tcdex.elemental.element.stasis": "Stasis",
   "modifier.tcdex.elemental.element.strand": "Strand",
+  "modifier.tcdex.elemental.element.prism": "Prism",
   "modifier.tcdex.elemental.tooltip.element": "Element: %s",
   "modifier.tcdex.elemental.tooltip.uncharged": "Element: uncharged (assigned when kept in inventory)",
   "effect.tcdex.devour": "Devour",
@@ -33,6 +34,7 @@
   "death.attack.tcdex.void": "%1$s was consumed by Void",
   "death.attack.tcdex.stasis": "%1$s was shattered by Stasis",
   "death.attack.tcdex.strand": "%1$s was torn apart by Strand",
+  "death.attack.tcdex.prism": "%1$s was shattered by prismatic light",
   "tooltip.tcdex.light_level": "Light: %s",
   "command.tcdex.setlight.success": "Set main hand item light level to %s",
   "command.tcdex.setlight.not_tool": "Main hand item must be a Tinkers tool or armor",
@@ -45,5 +47,6 @@
   "command.tcdex.debug.element.disabled": "Elemental debug output disabled",
   "command.tcdex.setelement.success": "Set main hand weapon Elemental Charge to %s",
   "command.tcdex.setelement.invalid": "Unknown element: %s (choices: solar/arc/void/stasis/strand)",
+  "command.tcdex.setelement.prism_disabled": "Prism cannot be obtained via Elemental Charge (boss-exclusive)",
   "command.tcdex.setelement.no_modifier": "Main hand weapon has no Elemental Charge modifier"
 }
