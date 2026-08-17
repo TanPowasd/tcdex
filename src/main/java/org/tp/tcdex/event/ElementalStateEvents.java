@@ -248,15 +248,13 @@ public class ElementalStateEvents {
     }
 
     /**
-     * 棱镜盾减免（凋零 / 末影龙 Boss 专属）：
+     * 棱镜盾非玩家伤害路径（凋零 / 末影龙 Boss 专属）：
      * <ul>
-     *   <li>棱镜伤害：不减免（匹配破盾结算，见 ElementalDamageEvents.handleShield）</li>
-     *   <li>动能伤害：减免 90%（×0.1）</li>
-     *   <li>其他非棱镜伤害：减免 50%（×0.5）</li>
+     *   <li>玩家攻击被 ElementalDamageEvents.handlePrismShield 完全吸收（磨损护盾，破盾前打不到血量），
+     *       本事件跳过被取消的原伤害事件，不参与玩家攻击结算</li>
+     *   <li>非玩家伤害（环境/灼烧 DoT/怪物互殴）：直接伤血，按 动能 90% / 其他非棱镜 50% 减免</li>
      * </ul>
-     * 任何伤害都重置脱战计时（棱镜盾回复需要脱战 10 秒）。
-     * NORMAL 优先级：在 ElementalDamageEvents（HIGHEST）元素转化 / rehurt 之后处理最终伤害；
-     * 被转化的原伤害事件已取消，直接跳过。
+     * 任何未取消的伤害都重置棱镜盾脱战计时（脱战 10 秒后回复）。
      */
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public static void onPrismShieldDamage(LivingHurtEvent event) {
@@ -266,12 +264,17 @@ public class ElementalStateEvents {
             return;
         }
         IElementalEntity targetData = IElementalEntity.of(target);
-        if (targetData.getShieldElement() != ElementType.PRISM || targetData.getShieldAmount() <= 0) {
+        if (targetData.getShieldElement() != ElementType.PRISM) {
             return;
         }
 
-        // 任何伤害都重置棱镜盾脱战计时
+        // 任何伤害都重置棱镜盾脱战计时（含盾值 0 期间——非棱镜打穿后回复中被打也会中断回复）
         targetData.markShieldHit(level.getGameTime());
+
+        // 盾值 0（非棱镜打穿后、回复前）：不减免，正常伤血
+        if (targetData.getShieldAmount() <= 0) {
+            return;
+        }
 
         // 棱镜伤害不减免（匹配破盾结算）
         if (event.getSource().is(ModDamageSources.PRISM_DAMAGE_TYPE)) {

@@ -1,0 +1,23 @@
+{
+  "tools": {
+    "type": "forge:difference",
+    "subtracted": {
+      "tag": "tconstruct:modifiable/single_use"
+    },
+    "base": {
+      "tag": "tconstruct:modifiable/melee"
+    }
+  },
+  "inputs": [
+    {
+      "item": "minecraft:redstone"
+    }
+  ],
+  "level": 1,
+  "slots": {
+    "upgrades": 1
+  },
+  "allow_crystal": true,
+  "result": "tcdex:arc",
+  "type": "tconstruct:modifier"
+}

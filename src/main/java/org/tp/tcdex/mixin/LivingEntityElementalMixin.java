@@ -135,12 +135,19 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
 
     @Override
     public float consumeShield(float damage) {
+        return consumeShield(damage, true);
+    }
+
+    @Override
+    public float consumeShield(float damage, boolean permanent) {
         tcdex$initShield();
         float overflow = Math.max(0.0f, damage - tcdex$shieldAmount);
         tcdex$shieldAmount = Math.max(0.0f, tcdex$shieldAmount - damage);
-        // 护盾完全耗尽（完全破坏）：清除护盾元素——棱镜盾（Boss）第一次完全破坏后不再回复；
-        // 攻击元素保留（固化于分配时，不随护盾消失）
-        if (tcdex$shieldAmount <= 0 && tcdex$shieldElement != null) {
+        // 护盾完全耗尽（完全破坏）：
+        // - permanent（棱镜伤害打穿）：清除护盾元素 → 永久失效，不再回复
+        // - 非永久（非棱镜伤害打穿）：保留护盾元素 → 脱战回复可重新长满
+        // 元素攻击不受影响（攻击元素固化于分配时，独立于护盾状态）
+        if (tcdex$shieldAmount <= 0 && tcdex$shieldElement != null && permanent) {
             tcdex$shieldElement = null;
         }
         tcdex$broadcastShield();
@@ -306,8 +313,9 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
 
         // ===== 棱镜盾：脱战回复 =====
         // 受击（markShieldHit）后 10 秒未受伤 → 每 5 tick 回复 10% 最大护盾值（Boss 棱镜盾专属）。
-        // 护盾第一次完全破坏时元素已被清除（consumeShield），此分支永久不成立 → 不再回复。
-        if (tcdex$shieldElement == ElementType.PRISM && tcdex$shieldAmount > 0) {
+        // 棱镜伤害打穿（permanent）会清除元素 → 永久不再回复；
+        // 非棱镜伤害打穿会保留元素 → 护盾从 0 开始重新回复（长满）。
+        if (tcdex$shieldElement == ElementType.PRISM) {
             float maxShield = self.getMaxHealth() * 0.5f;
             if (tcdex$shieldAmount < maxShield
                     && level.getGameTime() - tcdex$lastShieldHitTime >= PRISM_SHIELD_REGEN_DELAY) {

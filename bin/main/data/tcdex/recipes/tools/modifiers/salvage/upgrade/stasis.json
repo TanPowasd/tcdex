@@ -1,0 +1,16 @@
+{
+  "slots": {
+    "upgrades": 1
+  },
+  "tools": {
+    "type": "forge:difference",
+    "subtracted": {
+      "tag": "tconstruct:modifiable/single_use"
+    },
+    "base": {
+      "tag": "tconstruct:modifiable/melee"
+    }
+  },
+  "type": "tconstruct:modifier_salvage",
+  "modifier": "tcdex:stasis"
+}
