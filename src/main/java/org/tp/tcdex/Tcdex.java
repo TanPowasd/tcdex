@@ -28,8 +28,11 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
-import org.tp.tcdex.element.ElementalModifier;
-import org.tp.tcdex.modifier.EagerEdgeModifier;
+import org.tp.tcdex.modifier.elemental.ElementalModifier;
+import org.tp.tcdex.modifier.melee.CombatEchoModifier;
+import org.tp.tcdex.modifier.melee.EagerEdgeModifier;
+import org.tp.tcdex.modifier.special.AllPermittedModifier;
+import org.tp.tcdex.network.PacketHandler;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(Tcdex.MODID)
@@ -44,9 +47,14 @@ public class Tcdex {
     public Tcdex() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
+        // 注册网络通道（护盾同步等）
+        PacketHandler.register();
+
         // 注册自定义匠魂 Modifier
         modEventBus.addListener(EagerEdgeModifier::registerModifier);
-        modEventBus.addListener(ElementalModifier::registerModifiers);
+        modEventBus.addListener(AllPermittedModifier::registerModifier);
+        modEventBus.addListener(CombatEchoModifier::registerModifier);
+        modEventBus.addListener(ElementalModifier::registerModifier);
 
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);

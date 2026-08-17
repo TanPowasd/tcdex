@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_17",
   "refmap": "tcdex.refmap.json",
   "mixins": [
+    "LivingEntityElementalMixin"
   ],
   "client": [
   ],

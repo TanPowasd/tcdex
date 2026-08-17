@@ -1,6 +1,7 @@
-package org.tp.tcdex.modifier;
+package org.tp.tcdex.modifier.melee;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -8,15 +9,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.modifier.base.TcdexBaseModifier;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.modifiers.ModifierHooks;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
 import slimeknights.tconstruct.library.modifiers.ModifierManager;
-import slimeknights.tconstruct.library.modifiers.hook.combat.MeleeHitModifierHook;
-import slimeknights.tconstruct.library.modifiers.hook.interaction.InventoryTickModifierHook;
-import slimeknights.tconstruct.library.modifiers.impl.NoLevelsModifier;
-import slimeknights.tconstruct.library.module.ModuleHook;
-import slimeknights.tconstruct.library.module.ModuleHookMap;
 import slimeknights.tconstruct.library.tools.context.ToolAttackContext;
 import slimeknights.tconstruct.library.tools.nbt.IToolStackView;
 
@@ -26,7 +22,7 @@ import slimeknights.tconstruct.library.tools.nbt.IToolStackView;
  * <p>切换到武器后获得“急切”Buff，下一次近战命中时突进到目标面前；
  * 若没有目标则向面朝方向突进。突进后进入玩家全局冷却。</p>
  */
-public class EagerEdgeModifier extends NoLevelsModifier implements InventoryTickModifierHook, MeleeHitModifierHook {
+public class EagerEdgeModifier extends TcdexBaseModifier {
 
     /** 切换检测状态存放在工具持久 NBT */
     private static final ResourceLocation EAGER_WAS_HELD_KEY = ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "eager_was_held");
@@ -51,17 +47,14 @@ public class EagerEdgeModifier extends NoLevelsModifier implements InventoryTick
         event.registerStatic(new ModifierId(Tcdex.MODID, "eager_edge"), new EagerEdgeModifier());
     }
 
+    /** 无等级词条：显示名不附带等级 */
     @Override
-    protected void registerHooks(ModuleHookMap.Builder builder) {
-        super.registerHooks(builder);
-        builder.addHook(this, new ModuleHook[]{
-                ModifierHooks.INVENTORY_TICK,
-                ModifierHooks.MELEE_HIT
-        });
+    public Component getDisplayName(int level) {
+        return super.getDisplayName();
     }
 
     @Override
-    public void onInventoryTick(IToolStackView tool, ModifierEntry modifier, Level world, LivingEntity holder, int slot, boolean isSelected, boolean isHeld, ItemStack stack) {
+    protected void modifierOnInventoryTick(IToolStackView tool, ModifierEntry modifier, Level world, LivingEntity holder, int itemSlot, boolean isSelected, boolean isCorrectSlot, ItemStack stack) {
         if (world.isClientSide || !(holder instanceof Player player)) {
             return;
         }
@@ -82,14 +75,14 @@ public class EagerEdgeModifier extends NoLevelsModifier implements InventoryTick
 
         // 检测武器是否刚从非手持切换为主手持有
         boolean wasHeld = tool.getPersistentData().getBoolean(EAGER_WAS_HELD_KEY);
-        if (isHeld && !wasHeld && cooldownUntil <= now) {
+        if (isCorrectSlot && !wasHeld && cooldownUntil <= now) {
             playerData.putLong(BUFF_UNTIL_KEY, now + BUFF_DURATION_TICKS);
         }
-        tool.getPersistentData().putBoolean(EAGER_WAS_HELD_KEY, isHeld);
+        tool.getPersistentData().putBoolean(EAGER_WAS_HELD_KEY, isCorrectSlot);
     }
 
     @Override
-    public void afterMeleeHit(IToolStackView tool, ModifierEntry modifier, ToolAttackContext context, float damageDealt) {
+    protected void modifierAfterMeleeHit(IToolStackView tool, ModifierEntry modifier, ToolAttackContext context, float damageDealt) {
         LivingEntity attacker = context.getAttacker();
         if (attacker == null || attacker.level().isClientSide || !(attacker instanceof Player player)) {
             return;

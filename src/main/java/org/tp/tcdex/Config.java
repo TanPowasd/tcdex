@@ -7,10 +7,15 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.tp.tcdex.element.ElementManager;
+import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.light.LightLevelManager;
+import org.tp.tcdex.shield.PlayerShieldManager;
 
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -79,8 +84,99 @@ public class Config {
 
     // 怪物生成光等随机浮动范围
     private static final ForgeConfigSpec.IntValue MONSTER_SPAWN_RANDOM_RANGE = BUILDER
-            .comment("Monster spawn light random range. Value 30 means spawn light = average armor light +/- 30.")
-            .defineInRange("monsterSpawnRandomRange", 30, 0, 1000);
+            .comment("Monster spawn light random roll range (+/-). Small value keeps same-type monsters consistent. Default: 5.")
+            .defineInRange("monsterSpawnRandomRange", 5, 0, 1000);
+
+    // 元素护盾黑名单（绝对不带元素盾的生物，兼容其他 mod，entity id 匹配）
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> SHIELD_BLACKLIST = BUILDER
+            .comment(
+                    "Entities that never get an elemental shield.",
+                    "Format: modid:entity, e.g. minecraft:slime, othermod:boss",
+                    "Applies to monsters from any mod (matched by registry name)."
+            )
+            .defineListAllowEmpty("shieldBlacklist", List.of(), obj -> obj instanceof String);
+
+    // 元素护盾生成权重（相对权重，0 = 不生成该元素盾）
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_SOLAR = BUILDER
+            .comment("Relative weight for Solar shields on random assignment.")
+            .defineInRange("shieldWeightSolar", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_ARC = BUILDER
+            .comment("Relative weight for Arc shields on random assignment.")
+            .defineInRange("shieldWeightArc", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_VOID = BUILDER
+            .comment("Relative weight for Void shields on random assignment.")
+            .defineInRange("shieldWeightVoid", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_STASIS = BUILDER
+            .comment("Relative weight for Stasis shields on random assignment.")
+            .defineInRange("shieldWeightStasis", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_STRAND = BUILDER
+            .comment("Relative weight for Strand shields on random assignment.")
+            .defineInRange("shieldWeightStrand", 1, 0, 100);
+
+    // 元素充能随机元素权重（相对权重，0 = 不会随机到该元素）
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_SOLAR = BUILDER
+            .comment("Relative weight for Solar when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightSolar", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_ARC = BUILDER
+            .comment("Relative weight for Arc when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightArc", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_VOID = BUILDER
+            .comment("Relative weight for Void when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightVoid", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_STASIS = BUILDER
+            .comment("Relative weight for Stasis when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightStasis", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_STRAND = BUILDER
+            .comment("Relative weight for Strand when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightStrand", 1, 0, 100);
+
+    // 世界光等场：出生点附近基线
+    private static final ForgeConfigSpec.IntValue WORLD_BASE_LIGHT = BUILDER
+            .comment("World base light level: monster light near world spawn in the overworld. Monster light is fixed by world position, not player average.")
+            .defineInRange("worldBaseLight", 20, 1, 10000);
+
+    // 维度光等偏移
+    private static final ForgeConfigSpec.IntValue NETHER_LIGHT_OFFSET = BUILDER
+            .comment("Extra monster light offset in the Nether.")
+            .defineInRange("netherLightOffset", 25, 0, 1000);
+    private static final ForgeConfigSpec.IntValue END_LIGHT_OFFSET = BUILDER
+            .comment("Extra monster light offset in the End.")
+            .defineInRange("endLightOffset", 50, 0, 1000);
+
+    // 维度光等偏移表（含其他 mod 维度）与其他维度默认偏移
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> DIMENSION_LIGHT_OFFSETS = BUILDER
+            .comment(
+                    "Dimension light offsets (overrides built-in Nether/End and the default for other dimensions).",
+                    "Format: dimension_registry_name=offset",
+                    "Example: twilightforest:twilight_forest=40",
+                    "Works with dimensions from any mod."
+            )
+            .defineListAllowEmpty("dimensionLightOffsets", List.of(), obj -> obj instanceof String);
+    private static final ForgeConfigSpec.IntValue OTHER_DIMENSION_OFFSET = BUILDER
+            .comment("Default monster light offset for dimensions not listed above (dimensions added by other mods).")
+            .defineInRange("dimensionOffsetOther", 30, 0, 1000);
+
+    // 距离梯度：越远离出生点越难
+    private static final ForgeConfigSpec.IntValue DISTANCE_GRADIENT_STEP = BUILDER
+            .comment("Monster light gained per 1000 blocks away from world spawn.")
+            .defineInRange("distanceGradientStep", 3, 0, 100);
+    private static final ForgeConfigSpec.IntValue DISTANCE_GRADIENT_CAP = BUILDER
+            .comment("Max monster light gained from distance to world spawn.")
+            .defineInRange("distanceGradientCap", 45, 0, 1000);
+
+    // 时间压力：黑暗从世界边缘向中心蔓延
+    private static final ForgeConfigSpec.IntValue DAYS_PER_TIME_BONUS = BUILDER
+            .comment("Active days (server runtime days) per +1 monster light from time pressure. Server time does not advance while nobody plays.")
+            .defineInRange("daysPerTimeBonus", 5, 1, 1000);
+    private static final ForgeConfigSpec.IntValue MAX_TIME_BONUS = BUILDER
+            .comment("Max monster light gained from time pressure.")
+            .defineInRange("maxTimeBonus", 30, 0, 1000);
+    private static final ForgeConfigSpec.IntValue TIME_SPREAD_START = BUILDER
+            .comment("Time pressure starts applying beyond this distance from spawn (blocks). Spawn area stays easy for new players.")
+            .defineInRange("timeSpreadStart", 2000, 0, 1000000);
+    private static final ForgeConfigSpec.IntValue TIME_SPREAD_END = BUILDER
+            .comment("Time pressure reaches full strength at this distance from spawn (blocks).")
+            .defineInRange("timeSpreadEnd", 10000, 1, 1000000);
 
     // 玩家攻击怪物时的伤害修正系数
     private static final ForgeConfigSpec.DoubleValue DEALT_OVERLEVEL_STEP = BUILDER
@@ -120,15 +216,41 @@ public class Config {
             .comment("Show light level HUD on the screen.")
             .define("showLightHud", true);
 
+    // 玩家脱战自动回复护盾（命运2 风格）
+    private static final ForgeConfigSpec.BooleanValue PLAYER_SHIELD_ENABLED = BUILDER
+            .comment("Enable player auto-regenerating shield (Destiny 2 style).")
+            .define("playerShieldEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue PLAYER_SHIELD_RATIO = BUILDER
+            .comment("Shield max = player max health × ratio. Default: 1.0 (shield equals health).")
+            .defineInRange("playerShieldRatio", 1.0, 0.0, 10.0);
+    private static final ForgeConfigSpec.IntValue PLAYER_SHIELD_REGEN_DELAY = BUILDER
+            .comment("Seconds out of combat (no damage taken, no attacks) before shield starts regenerating. Default: 5.")
+            .defineInRange("playerShieldRegenDelay", 5, 0, 60);
+    private static final ForgeConfigSpec.DoubleValue PLAYER_SHIELD_REGEN_RATE = BUILDER
+            .comment("Shield points regenerated per tick while out of combat. Default: 0.4 (8/s, full in ~2.5s).")
+            .defineInRange("playerShieldRegenRate", 0.4, 0.0, 100.0);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_SHIELD_HUD = BUILDER
+            .comment("Show player shield bar on HUD.")
+            .define("playerShieldHud", true);
+    private static final ForgeConfigSpec.BooleanValue PLAYER_BUFF_HUD = BUILDER
+            .comment("Show Destiny 2 style buff list HUD (eager edge, all permitted, elemental states).")
+            .define("playerBuffHud", true);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static boolean logDirtBlock;
     public static int magicNumber;
     public static String magicNumberIntroduction;
     public static Set<Item> items;
+    public static boolean playerShieldHud;
+    public static boolean playerBuffHud;
 
     private static boolean validateItemName(final Object obj) {
-        return obj instanceof final String itemName && ForgeRegistries.ITEMS.containsKey(new ResourceLocation(itemName));
+        if (!(obj instanceof final String itemName)) {
+            return false;
+        }
+        ResourceLocation location = ResourceLocation.tryParse(itemName);
+        return location != null && ForgeRegistries.ITEMS.containsKey(location);
     }
 
     @SubscribeEvent
@@ -138,10 +260,42 @@ public class Config {
         magicNumberIntroduction = MAGIC_NUMBER_INTRODUCTION.get();
 
         // convert the list of strings into a set of items
-        items = ITEM_STRINGS.get().stream().map(itemName -> ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemName))).collect(Collectors.toSet());
+        items = ITEM_STRINGS.get().stream()
+                .map(ResourceLocation::tryParse)
+                .filter(location -> location != null)
+                .map(ForgeRegistries.ITEMS::getValue)
+                .collect(Collectors.toSet());
 
         LightLevelManager.reloadFromConfig(MONSTER_BASE_LIGHTS.get(), DEFAULT_MONSTER_LIGHT.get());
         LightLevelManager.setMonsterSpawnRandomRange(MONSTER_SPAWN_RANDOM_RANGE.get());
+        LightLevelManager.reloadWorldLightConfig(
+                WORLD_BASE_LIGHT.get(), NETHER_LIGHT_OFFSET.get(), END_LIGHT_OFFSET.get(),
+                DISTANCE_GRADIENT_STEP.get(), DISTANCE_GRADIENT_CAP.get(),
+                DAYS_PER_TIME_BONUS.get(), MAX_TIME_BONUS.get(),
+                TIME_SPREAD_START.get(), TIME_SPREAD_END.get()
+        );
+        LightLevelManager.reloadDimensionConfig(DIMENSION_LIGHT_OFFSETS.get(), OTHER_DIMENSION_OFFSET.get());
+        // 元素护盾黑名单与生成权重
+        Map<ElementType, Integer> shieldWeights = new EnumMap<>(ElementType.class);
+        shieldWeights.put(ElementType.SOLAR, SHIELD_WEIGHT_SOLAR.get());
+        shieldWeights.put(ElementType.ARC, SHIELD_WEIGHT_ARC.get());
+        shieldWeights.put(ElementType.VOID, SHIELD_WEIGHT_VOID.get());
+        shieldWeights.put(ElementType.STASIS, SHIELD_WEIGHT_STASIS.get());
+        shieldWeights.put(ElementType.STRAND, SHIELD_WEIGHT_STRAND.get());
+        ElementManager.reloadShieldConfig(SHIELD_BLACKLIST.get(), shieldWeights);
+        // 元素充能随机元素权重
+        Map<ElementType, Integer> elementWeights = new EnumMap<>(ElementType.class);
+        elementWeights.put(ElementType.SOLAR, ELEMENT_WEIGHT_SOLAR.get());
+        elementWeights.put(ElementType.ARC, ELEMENT_WEIGHT_ARC.get());
+        elementWeights.put(ElementType.VOID, ELEMENT_WEIGHT_VOID.get());
+        elementWeights.put(ElementType.STASIS, ELEMENT_WEIGHT_STASIS.get());
+        elementWeights.put(ElementType.STRAND, ELEMENT_WEIGHT_STRAND.get());
+        ElementManager.reloadElementWeights(elementWeights);
+        PlayerShieldManager.reloadConfig(
+                PLAYER_SHIELD_ENABLED.get(), PLAYER_SHIELD_RATIO.get(),
+                PLAYER_SHIELD_REGEN_DELAY.get(), PLAYER_SHIELD_REGEN_RATE.get());
+        playerShieldHud = PLAYER_SHIELD_HUD.get();
+        playerBuffHud = PLAYER_BUFF_HUD.get();
         LightLevelManager.reloadDamageConfig(
                 DEALT_OVERLEVEL_STEP.get(), DEALT_OVERLEVEL_CAP.get(),
                 DEALT_UNDERLEVEL_STEP.get(), DEALT_UNDERLEVEL_MIN.get(),

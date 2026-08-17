@@ -1,6 +1,8 @@
 package org.tp.tcdex.light;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -51,7 +53,29 @@ public final class LightLevelManager {
     /** 基础光等固定部分 */
     private static final int BASE_LIGHT_CONSTANT = 10;
     /** 怪物生成光等随机浮动范围（±值） */
-    private static int monsterSpawnRandomRange = 30;
+    private static int monsterSpawnRandomRange = 5;
+    /** 世界光等场：出生点附近基线 */
+    private static int worldBaseLight = 20;
+    /** 地狱光等偏移 */
+    private static int netherLightOffset = 25;
+    /** 末地光等偏移 */
+    private static int endLightOffset = 50;
+    /** 其他维度（其他 mod 添加的维度）默认光等偏移 */
+    private static int otherDimensionLightOffset = 30;
+    /** 维度光等偏移表：维度注册名 → 偏移（覆盖内置与默认，兼容其他 mod 维度） */
+    private static final Map<String, Integer> DIMENSION_LIGHT_OFFSETS = new HashMap<>();
+    /** 距离梯度：每 1000 格增加的光等 */
+    private static int distanceGradientStep = 3;
+    /** 距离梯度上限 */
+    private static int distanceGradientCap = 45;
+    /** 时间压力：每多少活跃天数（服务器运行天数）+1 光等 */
+    private static int daysPerTimeBonus = 5;
+    /** 时间压力上限 */
+    private static int maxTimeBonus = 30;
+    /** 时间压力蔓延起始距离（此距离内不受时间影响，出生点安全区） */
+    private static int timeSpreadStartDist = 2000;
+    /** 时间压力蔓延完全生效距离 */
+    private static int timeSpreadEndDist = 10000;
     /** 输出伤害：每高 1 光等 +1%，最多 +20%（命运2：光等优势上限 +20） */
     private static float dealtOverlevelStep = 0.01f;
     private static float dealtOverlevelCap = 20.0f;
@@ -163,6 +187,50 @@ public final class LightLevelManager {
         LightLevelManager.takenUnderlevelCap = (float) takenUnderlevelCap;
         LightLevelManager.takenOverlevelStep = (float) takenOverlevelStep;
         LightLevelManager.takenOverlevelMin = (float) takenOverlevelMin;
+    }
+
+    /** 从 Forge 配置重新加载世界光等场参数（基线/维度/距离梯度/时间压力） */
+    public static void reloadWorldLightConfig(int worldBaseLight, int netherLightOffset, int endLightOffset,
+                                              int distanceGradientStep, int distanceGradientCap,
+                                              int daysPerTimeBonus, int maxTimeBonus,
+                                              int timeSpreadStartDist, int timeSpreadEndDist) {
+        LightLevelManager.worldBaseLight = Math.max(1, worldBaseLight);
+        LightLevelManager.netherLightOffset = Math.max(0, netherLightOffset);
+        LightLevelManager.endLightOffset = Math.max(0, endLightOffset);
+        LightLevelManager.distanceGradientStep = Math.max(0, distanceGradientStep);
+        LightLevelManager.distanceGradientCap = Math.max(0, distanceGradientCap);
+        LightLevelManager.daysPerTimeBonus = Math.max(1, daysPerTimeBonus);
+        LightLevelManager.maxTimeBonus = Math.max(0, maxTimeBonus);
+        LightLevelManager.timeSpreadStartDist = Math.max(0, timeSpreadStartDist);
+        LightLevelManager.timeSpreadEndDist = Math.max(Math.max(1, timeSpreadStartDist), timeSpreadEndDist);
+    }
+
+    /**
+     * 从 Forge 配置重新加载维度光等偏移表与其他维度默认偏移。
+     *
+     * @param entries    格式为 "维度注册名=偏移" 的配置项列表（兼容其他 mod 维度）
+     * @param otherOffset 未列出维度的默认偏移（其他 mod 维度）
+     */
+    public static void reloadDimensionConfig(List<? extends String> entries, int otherOffset) {
+        otherDimensionLightOffset = Math.max(0, otherOffset);
+        DIMENSION_LIGHT_OFFSETS.clear();
+        for (String entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            String trimmed = entry.trim();
+            int eq = trimmed.indexOf('=');
+            if (eq <= 0 || eq == trimmed.length() - 1) {
+                continue;
+            }
+            String id = trimmed.substring(0, eq).trim();
+            String value = trimmed.substring(eq + 1).trim();
+            try {
+                DIMENSION_LIGHT_OFFSETS.put(id, Math.max(0, Integer.parseInt(value)));
+            } catch (NumberFormatException ignored) {
+                // 忽略无法解析的行
+            }
+        }
     }
 
     /** 注册自定义物品光等提供器 */
@@ -407,10 +475,90 @@ public final class LightLevelManager {
         return (int) Math.round((double) total / players.size());
     }
 
-    /** 生成怪物光等：所有玩家护甲平均光等 ±30 随机浮动 */
-    public static int rollMonsterSpawnLight(Level level) {
-        int average = getAllPlayersArmorAverage(level);
-        int base = average > 0 ? average : defaultMonsterLight;
+    /** 获取世界光等场中的时间压力加成：按活跃天数（服务器运行天数）递增，封顶 */
+    public static int getWorldTimeBonus(Level level) {
+        if (level.isClientSide) {
+            return 0;
+        }
+        long activeDays = level.getGameTime() / 24000L;
+        return Math.min(maxTimeBonus, (int) (activeDays / daysPerTimeBonus));
+    }
+
+    /** 时间压力蔓延权重：起始距离内为 0（出生点安全区），结束距离及以上为 1，中间线性 */
+    public static float getTimeSpreadFactor(Level level, BlockPos pos) {
+        double distance = Math.sqrt(pos.distSqr(level.getSharedSpawnPos()));
+        if (distance <= timeSpreadStartDist) {
+            return 0.0f;
+        }
+        if (distance >= timeSpreadEndDist) {
+            return 1.0f;
+        }
+        return (float) ((distance - timeSpreadStartDist) / (timeSpreadEndDist - timeSpreadStartDist));
+    }
+
+    /**
+     * 维度光等偏移：
+     * 1. 配置表命中（含其他 mod 维度）→ 表值
+     * 2. 地狱/末地 → 内置偏移
+     * 3. 主世界 → 0（基线已含）
+     * 4. 其他维度（其他 mod 添加的维度）→ 默认偏移（30）
+     */
+    public static int getDimensionLightOffset(Level level) {
+        ResourceKey<Level> dimension = level.dimension();
+        Integer configured = DIMENSION_LIGHT_OFFSETS.get(dimension.location().toString());
+        if (configured != null) {
+            return configured;
+        }
+        if (dimension == Level.NETHER) {
+            return netherLightOffset;
+        }
+        if (dimension == Level.END) {
+            return endLightOffset;
+        }
+        if (dimension == Level.OVERWORLD) {
+            return 0;
+        }
+        return otherDimensionLightOffset;
+    }
+
+    /** 距离梯度：距出生点每 1000 格增加光等，封顶 */
+    public static int getDistanceLightGradient(Level level, BlockPos pos) {
+        double distance = Math.sqrt(pos.distSqr(level.getSharedSpawnPos()));
+        int gradient = (int) (distance / 1000.0 * distanceGradientStep);
+        return Math.min(distanceGradientCap, gradient);
+    }
+
+    /** 生物强度系数：按最大生命值估算，兼容其他 mod 的大型生物 */
+    public static float getCreatureMultiplier(LivingEntity entity) {
+        float health = entity.getMaxHealth();
+        if (health >= 100) {
+            return 2.0f;
+        }
+        if (health >= 50) {
+            return 1.5f;
+        }
+        return 1.0f;
+    }
+
+    /**
+     * 世界光等场基础值（不含随机浮动）：
+     * 基线 + 维度偏移 + 距离梯度 + 时间压力×蔓延权重。
+     * 与玩家光等完全解耦：怪物光等由世界位置与时间决定，玩家升级后可碾压低级区域。
+     */
+    public static int getBaseWorldLight(Level level, BlockPos pos) {
+        int light = worldBaseLight + getDimensionLightOffset(level) + getDistanceLightGradient(level, pos);
+        int timeBonus = Math.round(getWorldTimeBonus(level) * getTimeSpreadFactor(level, pos));
+        return Math.max(1, light + timeBonus);
+    }
+
+    /**
+     * 生成怪物光等：配置表优先；未配置的生物按世界光等场 × 生物系数，
+     * 再叠加小范围随机浮动。首次生成后由调用方锁定到实体 NBT。
+     */
+    public static int rollMonsterSpawnLight(Level level, BlockPos pos, LivingEntity entity) {
+        ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
+        Integer override = key != null ? MONSTER_BASE_LIGHTS.get(key.toString()) : null;
+        int base = override != null ? override : Math.round(getBaseWorldLight(level, pos) * getCreatureMultiplier(entity));
         int roll = monsterSpawnRandomRange <= 0 ? 0 : level.random.nextInt(monsterSpawnRandomRange * 2 + 1) - monsterSpawnRandomRange;
         return Math.max(1, base + roll);
     }
@@ -478,8 +626,9 @@ public final class LightLevelManager {
     }
 
     /**
-     * 获取怪物的默认基础光等。
-     * 优先查配置文件；未配置的 mod 生物会根据最大生命值自动生成一个合理光等。
+     * 获取怪物的默认基础光等（无锁定 NBT 时的回退）。
+     * 优先查配置文件；未配置的生物按世界光等场 × 生物系数估算；
+     * 客户端无法访问世界光等场时回退到默认光等，保证名字标签等渲染稳定。
      */
     public static int getDefaultMonsterBaseLight(LivingEntity entity) {
         ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
@@ -489,9 +638,10 @@ public final class LightLevelManager {
                 return value;
             }
         }
-        // 兼容其他 mod 的生物：根据最大生命值估算光等
-        int healthBased = (int) Math.ceil(entity.getMaxHealth() * 0.5);
-        int light = 10 + healthBased;
+        if (entity.level().isClientSide) {
+            return defaultMonsterLight;
+        }
+        int light = Math.round(getBaseWorldLight(entity.level(), entity.blockPosition()) * getCreatureMultiplier(entity));
         return Math.max(defaultMonsterLight, Math.min(200, light));
     }
 

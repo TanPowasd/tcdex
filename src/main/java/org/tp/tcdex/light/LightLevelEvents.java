@@ -25,9 +25,14 @@ import net.minecraftforge.client.event.RenderNameTagEvent;
 import org.tp.tcdex.ModItems;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.TcdexF;
+import org.tp.tcdex.debug.TcdexDebug;
+import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.modifier.elemental.ElementStatus;
+import org.tp.tcdex.modifier.elemental.IElementalEntity;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Mod.EventBusSubscriber(modid = Tcdex.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class LightLevelEvents {
@@ -42,7 +47,8 @@ public class LightLevelEvents {
         if (entity instanceof LivingEntity living && LightLevelManager.isMonster(living)) {
             var data = living.getPersistentData();
             if (!data.contains(LightLevelManager.MONSTER_BASE_LIGHT_TAG)) {
-                data.putInt(LightLevelManager.MONSTER_BASE_LIGHT_TAG, LightLevelManager.rollMonsterSpawnLight(event.getLevel()));
+                data.putInt(LightLevelManager.MONSTER_BASE_LIGHT_TAG,
+                        LightLevelManager.rollMonsterSpawnLight(event.getLevel(), living.blockPosition(), living));
             }
         }
     }
@@ -208,6 +214,61 @@ public class LightLevelEvents {
                                             return 1;
                                         })
                                 )
+                                .then(Commands.literal("element")
+                                        .then(Commands.literal("on")
+                                                .executes(ctx -> {
+                                                    TcdexDebug.setElementalEnabled(true);
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.tcdex.debug.element.enabled"), true);
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(Commands.literal("off")
+                                                .executes(ctx -> {
+                                                    TcdexDebug.setElementalEnabled(false);
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.tcdex.debug.element.disabled"), true);
+                                                    return 1;
+                                                })
+                                        )
+                                )
+                        )
+                        .then(Commands.literal("element")
+                                .executes(ctx -> {
+                                    Player player = ctx.getSource().getPlayerOrException();
+                                    // 查看准星目标的护盾与元素状态
+                                    List<HitResult> hits = TcdexF.Radiographic_detection_GetEntity(player, 64);
+                                    if (hits == null || hits.isEmpty() || !(hits.get(0) instanceof EntityHitResult entityHit)
+                                            || !(entityHit.getEntity() instanceof LivingEntity living) || living instanceof Player) {
+                                        ctx.getSource().sendFailure(Component.translatable("command.tcdex.setlooklight.no_target"));
+                                        return 0;
+                                    }
+
+                                    IElementalEntity data = IElementalEntity.of(living);
+                                    // 护盾信息
+                                    ElementType shield = data.getShieldElement();
+                                    float shieldAmount = data.getShieldAmount();
+                                    if (shield != null && shieldAmount > 0) {
+                                        player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                                                "[元素] %s | 护盾: %s (%.1f / %.1f)",
+                                                living.getDisplayName().getString(), shield.getId(), shieldAmount,
+                                                living.getMaxHealth() * 0.5f)));
+                                    } else {
+                                        player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                                                "[元素] %s | 无护盾", living.getDisplayName().getString())));
+                                    }
+                                    // 元素状态
+                                    Map<ElementType, ElementStatus> states = data.getAllElementStates();
+                                    if (states.isEmpty()) {
+                                        player.sendSystemMessage(Component.literal("  元素状态: 无"));
+                                    } else {
+                                        player.sendSystemMessage(Component.literal("  元素状态:"));
+                                        for (Map.Entry<ElementType, ElementStatus> entry : states.entrySet()) {
+                                            player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                                                    "    %s: 层数 %.0f | 剩余 %d tick",
+                                                    entry.getKey().getId(), entry.getValue().stacks, entry.getValue().duration)));
+                                        }
+                                    }
+                                    return 1;
+                                })
                         )
         );
     }

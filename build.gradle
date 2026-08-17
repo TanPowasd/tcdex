@@ -93,6 +93,8 @@ minecraft {
                     source sourceSets.main
                 }
             }
+            // 开发环境启用 Mixin 引导（FML 需要 --mixin 参数才会加载 tcdex.mixins.json）
+            args '--mixin', 'true'
         }
 
         client {
@@ -204,7 +206,8 @@ tasks.named('jar', Jar).configure {
                     "Implementation-Title"    : project.name,
                     "Implementation-Version"  : project.jar.archiveVersion,
                     "Implementation-Vendor"   : mod_authors,
-                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")])
+                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                    "MixinConfigs"            : "tcdex.mixins.json"])
     }
 
     // This is the preferred method to reobfuscate your jar file
