@@ -1,6 +1,9 @@
-# TCDEX texture generator config
-# Fluid: <fluid_name>,<hex_color>[,style]     style: molten|water|simple (default molten)
-# Item:  item:<item_name>,<hex_color>          -> 16x16 ingot icon
+# TCDEX 纹理生成器配置（v2，仿匠魂风格）
+# 流体: fluid:<名称>,<十六进制颜色>[,帧数]   -> block/<名称>_still.png + block/<名称>_flow.png (+mcmeta)
+# 物品: item:<名称>,<十六进制颜色>[,形状]    -> item/<名称>.png   形状: ingot|nugget|gem|plate（默认 ingot）
 #
-# Add new fluids/materials here, then run:
+# 添加条目后运行:
 #   java tools/texturegen/TextureGenerator.java
+
+fluid:molten_prism,A78BFA
+item:prism_ingot,A78BFA,ingot

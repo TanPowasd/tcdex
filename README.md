@@ -535,15 +535,25 @@ playerBuffHud = true
 ## 8. 纹理生成器（流体 / 材料图标）
 
 `tools/texturegen/TextureGenerator.java` —— 零依赖的独立 Java 工具（JDK 11+ 单文件运行），
-为新增流体与材料生成占位纹理，按 Forge 1.20.1 规范输出：
+为新增流体与材料生成**贴合原版/匠魂观感**的纹理（非占位图），按 Forge 1.20.1 规范输出：
+
+- **流体（仿匠魂熔融金属，参数为对 TConstruct 3.11 纹理的实测还原）**：
+  - still = 16x16 帧垂直堆叠、flow = 32x32 帧垂直堆叠，mcmeta `frametime 2`
+  - 10 级调色板由单色自动派生（暗端→亮端：亮度 ×~2、饱和度降 ~0.3、色相 +10° 偏移，
+    与匠魂铁/玛玉灵熔融纹理同一规律）
+  - still = 结壳噪声"沸腾"动画（每帧约 20% 像素在相邻色阶翻动，正弦相位无缝循环）
+  - flow = 暗色结壳整幅向下滚动 + 亮色流纹（滚动一周 = 帧数，无缝循环）
+  - 噪声可平铺（边缘无缝），同参数输出确定可复现
+- **物品（原版像素画风格）**：16x16 硬像素模板（无抗锯齿），5 色调色板由单色自动派生
+  （轮廓偏冷最暗 / 高光偏暖近白），4 种形状：`ingot` 锭 / `nugget` 粒 / `gem` 宝石 / `plate` 板
 
 ```
 src/main/resources/assets/tcdex/textures/
 ├── block/<name>_still.png      # 流体静止帧（多帧垂直堆叠动画）
 ├── block/<name>_still.png.mcmeta  # 动画元数据（frametime 2）
-├── block/<name>_flow.png       # 流体流动帧（横向流动条纹）
+├── block/<name>_flow.png       # 流体流动帧（多帧垂直堆叠动画）
 ├── block/<name>_flow.png.mcmeta
-└── item/<name>.png             # 锭形材料图标（16x16）
+└── item/<name>.png             # 材料图标（16x16 像素画）
 ```
 
 **用法**（项目根目录）：
@@ -552,20 +562,21 @@ src/main/resources/assets/tcdex/textures/
 # 按 tools/texturegen/textures.txt 批量生成
 java tools/texturegen/TextureGenerator.java
 
-# 追加单个流体 / 物品
-java tools/texturegen/TextureGenerator.java --fluid molten_tcdexium FF8844 molten
-java tools/texturegen/TextureGenerator.java --item tcdexium_ingot FF8844
+# 追加单个流体 / 物品（给出 CLI 条目时不再合并配置文件）
+java tools/texturegen/TextureGenerator.java --fluid molten_prism A78BFA
+java tools/texturegen/TextureGenerator.java --item prism_ingot A78BFA ingot
 
-# 参数：--size 32 --frames 4 --out <dir> --config <file>；--preview <png> 终端 ASCII 预览
+# 参数：--frames N（流体帧数，默认 16） --seed N（噪声种子） --out <dir> --config <file>
+#      --preview <png> 终端 ASCII 预览（动画显示前 4 帧）
 ```
 
 **textures.txt 格式**（每行一条，`#` 注释）：
 
 ```
-# 流体：<名称>,<十六进制颜色>[,风格]   风格：molten(熔融) | water(水) | simple(纯色)
-molten_prism,A78BFA,molten
-# 材料物品图标：item:<名称>,<十六进制颜色>
-item:prism_ingot,A78BFA
+# 流体：fluid:<名称>,<十六进制颜色>[,帧数]
+fluid:molten_prism,A78BFA
+# 材料物品图标：item:<名称>,<十六进制颜色>[,形状]   形状：ingot|nugget|gem|plate（默认 ingot）
+item:prism_ingot,A78BFA,ingot
 ```
 
 ---
