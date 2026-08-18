@@ -70,15 +70,59 @@ ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.tcdex]]
+modId="iceandfire"
+mandatory=false
+versionRange="[2.1.8,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcdex]]
+modId="irons_spellbooks"
+mandatory=false
+versionRange="[1.20.1-3.3.0.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+# ---- iceandfire 前置 ----
+[[dependencies.tcdex]]
+modId="citadel"
+mandatory=false
+versionRange="[2.4.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+# ---- irons_spellbooks 前置 ----
+[[dependencies.tcdex]]
+modId="geckolib"
+mandatory=false
+versionRange="[1.20.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcdex]]
+modId="curios"
+mandatory=false
+versionRange="[5.0.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcdex]]
+modId="irons_patreon_lib"
+mandatory=false
+versionRange="[1.20.1,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.tcdex]]
 modId="tconstruct"
 mandatory=true
-versionRange="[3.10.1.76,)"
+versionRange="[3.11.2.166,)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.tcdex]]
 modId="mantle"
 mandatory=true
-versionRange="[1.11.63,)"
+versionRange="[1.11.104,)"
 ordering = "NONE"
 side = "BOTH"

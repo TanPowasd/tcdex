@@ -27,6 +27,7 @@ import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.shield.PrismShieldConfig;
 
 import java.util.Locale;
 
@@ -71,10 +72,6 @@ public class ElementalStateEvents {
     private static final float REFRACT_SPLASH_RATIO = 0.25f;
     /** 棱镜折射溅射半径 */
     private static final float REFRACT_RADIUS = 2.0f;
-    /** 棱镜盾：非棱镜伤害减免倍率（50% 减免） */
-    private static final float PRISM_SHIELD_REDUCTION = 0.5f;
-    /** 棱镜盾：动能伤害减免倍率（90% 减免） */
-    private static final float PRISM_SHIELD_KINETIC_REDUCTION = 0.1f;
 
     /**
      * 怪物生成时分配元素护盾。
@@ -281,10 +278,10 @@ public class ElementalStateEvents {
             return;
         }
 
-        // 动能伤害减免 90%，其余非棱镜伤害减免 50%
+        // 动能伤害减免 90%，其余非棱镜伤害减免 50%（配置化，见 PrismShieldConfig）
         float original = event.getAmount();
         float reduction = event.getSource().is(ModDamageSources.KINETIC_DAMAGE_TYPE)
-                ? PRISM_SHIELD_KINETIC_REDUCTION : PRISM_SHIELD_REDUCTION;
+                ? PrismShieldConfig.getKineticReduction() : PrismShieldConfig.getElementReduction();
         event.setAmount(original * reduction);
         debugChat(event.getSource().getEntity(), String.format(Locale.ROOT,
                 "[元素调试] 棱镜盾: %s 减免 %.0f%% (%.2f → %.2f)",

@@ -11,6 +11,7 @@ import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.light.LightLevelManager;
 import org.tp.tcdex.shield.PlayerShieldManager;
+import org.tp.tcdex.shield.PrismShieldConfig;
 
 import java.util.Collections;
 import java.util.EnumMap;
@@ -253,6 +254,56 @@ public class Config {
             .comment("Chance per hit for an elemental monster attack to apply its element state (0-1). Default: 1.0 (always applies).")
             .defineInRange("monsterElementalAttackChance", 1.0, 0.0, 1.0);
 
+    // 怪物元素抗性/弱点表（entityid:element=倍率）
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> MONSTER_ELEMENT_RESISTANCES = BUILDER
+            .comment(
+                    "Monster elemental resistance/weakness table.",
+                    "Format: entity_registry_name:element_id=multiplier",
+                    "Example: minecraft:blaze:solar=0.5 (blaze takes 50% solar damage), minecraft:enderman:void=1.5 (enderman takes 150% void damage)",
+                    "1.0 = normal, >1 = weakness (takes more), <1 = resistance (takes less). Works with entities from any mod."
+            )
+            .defineListAllowEmpty("monsterElementResistances", List.of(
+                    "minecraft:blaze:solar=0.5",
+                    "minecraft:blaze:void=1.5",
+                    "minecraft:blaze:stasis=1.5",
+                    "minecraft:snow_golem:solar=1.5",
+                    "minecraft:snow_golem:stasis=0.5",
+                    "minecraft:enderman:void=1.5",
+                    "minecraft:enderman:strand=0.5",
+                    "minecraft:wither:void=0.5"
+            ), obj -> obj instanceof String);
+
+    // 棱镜盾参数（凋零/末影龙 Boss 专属）
+    private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_MATCH_EFFICIENCY = BUILDER
+            .comment("Prism shield wear efficiency for Prism damage (matching). Default: 2.0.")
+            .defineInRange("prismShieldMatchEfficiency", 2.0, 0.0, 10.0);
+    private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_ELEMENT_EFFICIENCY = BUILDER
+            .comment("Prism shield wear efficiency for other elemental damage (slow break). Default: 0.5.")
+            .defineInRange("prismShieldElementEfficiency", 0.5, 0.0, 10.0);
+    private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_KINETIC_EFFICIENCY = BUILDER
+            .comment("Prism shield wear efficiency for kinetic damage (slowest break). Default: 0.1.")
+            .defineInRange("prismShieldKineticEfficiency", 0.1, 0.0, 10.0);
+    private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_ELEMENT_REDUCTION = BUILDER
+            .comment("Damage reduction for non-player non-prism damage while the prism shield is up (0.5 = 50% reduction). Default: 0.5.")
+            .defineInRange("prismShieldElementReduction", 0.5, 0.0, 1.0);
+    private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_KINETIC_REDUCTION = BUILDER
+            .comment("Damage reduction for non-player kinetic damage while the prism shield is up (0.1 = 90% reduction). Default: 0.1.")
+            .defineInRange("prismShieldKineticReduction", 0.1, 0.0, 1.0);
+    private static final ForgeConfigSpec.IntValue PRISM_SHIELD_REGEN_DELAY = BUILDER
+            .comment("Seconds out of combat before the prism shield starts regenerating. Default: 10.")
+            .defineInRange("prismShieldRegenDelay", 10, 0, 3600);
+    private static final ForgeConfigSpec.IntValue PRISM_SHIELD_REGEN_CYCLE = BUILDER
+            .comment("Ticks per prism shield regen tick. Default: 5.")
+            .defineInRange("prismShieldRegenCycle", 5, 1, 1000);
+    private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_REGEN_PERCENT = BUILDER
+            .comment("Prism shield regen per cycle, as a fraction of max shield. Default: 0.1 (10%).")
+            .defineInRange("prismShieldRegenPercent", 0.1, 0.0, 1.0);
+
+    // 玩家护盾 × 元素联动：元素状态干扰回复
+    private static final ForgeConfigSpec.DoubleValue PLAYER_SHIELD_ELEMENT_FACTOR = BUILDER
+            .comment("Player shield regen rate multiplier while carrying any elemental state (1.0 = no effect). Default: 0.8 (slightly reduced).")
+            .defineInRange("playerShieldElementFactor", 0.8, 0.0, 1.0);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     public static boolean logDirtBlock;
@@ -312,9 +363,18 @@ public class Config {
         elementWeights.put(ElementType.PRISM, ELEMENT_WEIGHT_PRISM.get());
         ElementManager.reloadElementWeights(elementWeights);
         ElementManager.reloadAttackConfig(MONSTER_ELEMENTAL_ATTACKS.get(), MONSTER_ELEMENTAL_ATTACK_CHANCE.get());
+        // 元素抗性/弱点表
+        ElementManager.reloadResistances(MONSTER_ELEMENT_RESISTANCES.get());
+        // 棱镜盾参数（磨损效率/减免/回复）
+        PrismShieldConfig.reload(
+                PRISM_SHIELD_MATCH_EFFICIENCY.get(), PRISM_SHIELD_ELEMENT_EFFICIENCY.get(),
+                PRISM_SHIELD_KINETIC_EFFICIENCY.get(), PRISM_SHIELD_ELEMENT_REDUCTION.get(),
+                PRISM_SHIELD_KINETIC_REDUCTION.get(), PRISM_SHIELD_REGEN_DELAY.get(),
+                PRISM_SHIELD_REGEN_CYCLE.get(), PRISM_SHIELD_REGEN_PERCENT.get());
         PlayerShieldManager.reloadConfig(
                 PLAYER_SHIELD_ENABLED.get(), PLAYER_SHIELD_RATIO.get(),
-                PLAYER_SHIELD_REGEN_DELAY.get(), PLAYER_SHIELD_REGEN_RATE.get());
+                PLAYER_SHIELD_REGEN_DELAY.get(), PLAYER_SHIELD_REGEN_RATE.get(),
+                PLAYER_SHIELD_ELEMENT_FACTOR.get());
         playerShieldHud = PLAYER_SHIELD_HUD.get();
         playerBuffHud = PLAYER_BUFF_HUD.get();
         monsterShieldHud = MONSTER_SHIELD_HUD.get();

@@ -24,7 +24,10 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import org.tp.tcdex.modifier.hook.ElementalStateApplyHook;
 import org.tp.tcdex.modifier.hook.KillingHook;
+import org.tp.tcdex.modifier.hook.PlayerShieldHook;
+import org.tp.tcdex.modifier.hook.ShieldBreakHook;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
 import slimeknights.mantle.client.TooltipKey;
 import slimeknights.tconstruct.library.modifiers.Modifier;
@@ -151,7 +154,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
         BlockTransformModifierHook, CapacityBarHook, PlantHarvestModifierHook, ShearsModifierHook,
         SlingAngleModifierHook, SlingForceModifierHook, SlingLaunchModifierHook,
         // TCDEX 自定义
-        KillingHook {
+        KillingHook, ShieldBreakHook, PlayerShieldHook, ElementalStateApplyHook {
 
     @Override
     protected void registerHooks(ModuleHookMap.Builder hookBuilder) {
@@ -185,7 +188,8 @@ public abstract class TcdexBaseModifier extends Modifier implements
                 // special
                 ModifierHooks.BLOCK_TRANSFORM, ModifierHooks.CAPACITY_BAR, ModifierHooks.PLANT_HARVEST, ModifierHooks.SHEAR_ENTITY,
                 // TCDEX 自定义
-                TcdexHooks.KILLING_HOOK);
+                TcdexHooks.KILLING_HOOK, TcdexHooks.SHIELD_BREAK, TcdexHooks.PLAYER_SHIELD,
+                TcdexHooks.ELEMENTAL_STATE_APPLY);
     }
 
     // ========================================================================
@@ -703,6 +707,36 @@ public abstract class TcdexBaseModifier extends Modifier implements
         modifierOnKillLivingTarget(tool, event, attacker, target, level);
     }
 
+    @Override
+    public float modifyBreakExplosion(IToolStackView tool, ModifierEntry modifier, LivingEntity target, org.tp.tcdex.element.ElementType shieldElement, float damage) {
+        return modifierModifyBreakExplosion(tool, modifier, target, shieldElement, damage);
+    }
+
+    @Override
+    public void onShieldBreak(IToolStackView tool, ModifierEntry modifier, LivingEntity target, org.tp.tcdex.element.ElementType shieldElement, LivingEntity attacker) {
+        modifierOnShieldBreak(tool, modifier, target, shieldElement, attacker);
+    }
+
+    @Override
+    public float modifyAbsorbed(IToolStackView tool, ModifierEntry modifier, Player player, float damageAmount, float absorbed) {
+        return modifierModifyAbsorbed(tool, modifier, player, damageAmount, absorbed);
+    }
+
+    @Override
+    public float modifyRegenRate(IToolStackView tool, ModifierEntry modifier, Player player, float rate) {
+        return modifierModifyRegenRate(tool, modifier, player, rate);
+    }
+
+    @Override
+    public float modifyStateStacks(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, float stacks) {
+        return modifierModifyStateStacks(tool, modifier, element, stacks);
+    }
+
+    @Override
+    public int modifyStateDuration(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, int duration) {
+        return modifierModifyStateDuration(tool, modifier, element, duration);
+    }
+
     // ========================================================================
     //  可覆写方法（全部空实现 / 安全默认值，子类按需覆写）
     // ========================================================================
@@ -1048,5 +1082,28 @@ public abstract class TcdexBaseModifier extends Modifier implements
 
     // TCDEX 自定义 hook
     protected void modifierOnKillLivingTarget(IToolStackView tool, net.minecraftforge.event.entity.living.LivingDeathEvent event, LivingEntity attacker, LivingEntity target, int level) {
+    }
+
+    protected float modifierModifyBreakExplosion(IToolStackView tool, ModifierEntry modifier, LivingEntity target, org.tp.tcdex.element.ElementType shieldElement, float damage) {
+        return damage;
+    }
+
+    protected void modifierOnShieldBreak(IToolStackView tool, ModifierEntry modifier, LivingEntity target, org.tp.tcdex.element.ElementType shieldElement, LivingEntity attacker) {
+    }
+
+    protected float modifierModifyAbsorbed(IToolStackView tool, ModifierEntry modifier, Player player, float damageAmount, float absorbed) {
+        return absorbed;
+    }
+
+    protected float modifierModifyRegenRate(IToolStackView tool, ModifierEntry modifier, Player player, float rate) {
+        return rate;
+    }
+
+    protected float modifierModifyStateStacks(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, float stacks) {
+        return stacks;
+    }
+
+    protected int modifierModifyStateDuration(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, int duration) {
+        return duration;
     }
 }

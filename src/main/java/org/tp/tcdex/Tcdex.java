@@ -28,10 +28,15 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
+import org.tp.tcdex.compat.TcdexCompat;
 import org.tp.tcdex.effect.TcdexEffects;
+import org.tp.tcdex.modifier.ModifierExclusivity;
 import org.tp.tcdex.modifier.elemental.ElementalModifier;
+import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
+import org.tp.tcdex.modifier.melee.BurningFistsModifier;
 import org.tp.tcdex.modifier.melee.CombatEchoModifier;
 import org.tp.tcdex.modifier.melee.EagerEdgeModifier;
+import org.tp.tcdex.modifier.melee.SynthoModifier;
 import org.tp.tcdex.modifier.special.AllPermittedModifier;
 import org.tp.tcdex.network.PacketHandler;
 
@@ -51,11 +56,20 @@ public class Tcdex {
         // 注册网络通道（护盾同步等）
         PacketHandler.register();
 
+        // 其他 mod 软联动（冰与火之舞 / 铁魔法，不作为前置依赖）
+        TcdexCompat.init();
+
+        // 注册词条互斥关系（元素充能 ↔ 棱镜共鸣）
+        ModifierExclusivity.registerAll();
+
         // 注册自定义匠魂 Modifier
         modEventBus.addListener(EagerEdgeModifier::registerModifier);
         modEventBus.addListener(AllPermittedModifier::registerModifier);
         modEventBus.addListener(CombatEchoModifier::registerModifier);
         modEventBus.addListener(ElementalModifier::registerModifier);
+        modEventBus.addListener(PrismResonanceModifier::registerModifier);
+        modEventBus.addListener(SynthoModifier::registerModifier);
+        modEventBus.addListener(BurningFistsModifier::registerModifier);
 
         // 注册自定义药水效果（吞噬等）
         TcdexEffects.register(modEventBus);

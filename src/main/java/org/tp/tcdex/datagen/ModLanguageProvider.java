@@ -44,7 +44,15 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.tooltip.element", "Element: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "Element: uncharged (assigned when kept in inventory)");
 
+        add("modifier.tcdex.prism_resonance", "Prism Resonance");
+        add("modifier.tcdex.prism_resonance.flavor", "All light bends to the prism");
+        add("modifier.tcdex.prism_resonance.description", "Attacks convert to Prism damage: wear every elemental shield at matching 2x efficiency, permanently break Prism shields (no regen), and apply the Refract mark on hit (25% splash). The exclusive source of Prism damage. Exclusive with Elemental Charge.");
+
+        add("modifier.tcdex.exclusive", "Cannot be combined with %s");
+
         add("effect.tcdex.devour", "Devour");
+        add("effect.tcdex.war_banner", "War Banner");
+        add("effect.tcdex.amplified", "Amplified");
 
         add("modifier.tcdex.all_permitted", "All Permitted");
         add("modifier.tcdex.all_permitted.flavor", "Nothing is true, everything is permitted");
@@ -52,6 +60,14 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.combat_echo", "Combat Echo");
         add("modifier.tcdex.combat_echo.flavor", "One blow, endless echoes");
         add("modifier.tcdex.combat_echo.description", "After a melee hit, deal an additional 50% of the damage dealt");
+
+        add("modifier.tcdex.synthetic_hands", "Synthoceps");
+        add("modifier.tcdex.synthetic_hands.flavor", "The more the merrier");
+        add("modifier.tcdex.synthetic_hands.description", "When surrounded by 3+ hostiles, melee damage +200%; melee kills restore 2 health.");
+
+        add("modifier.tcdex.burning_fists", "Burning Fists");
+        add("modifier.tcdex.burning_fists.flavor", "The worm's hunger burns in every blow");
+        add("modifier.tcdex.burning_fists.description", "Melee kills ignite Burning Fists: +40% melee damage per stack (max 5), decaying over time. From level 2, grants bonus weapon damage (+2, +4 at level 3).");
 
         add("hud.tcdex.eager_cooldown", "Eager Cooldown");
         add("hud.tcdex.all_permitted.yun", "All Permitted");
@@ -104,7 +120,15 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.tooltip.element", "元素: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "元素: 未充能（收入物品栏后确定）");
 
+        add("modifier.tcdex.prism_resonance", "棱镜共鸣");
+        add("modifier.tcdex.prism_resonance.flavor", "万光归棱");
+        add("modifier.tcdex.prism_resonance.description", "攻击转化为棱镜伤害：对所有元素护盾按匹配效率（×2）磨损，可永久打破棱镜盾（不再回复）；命中施加折射标记（25% 溅射）。棱镜伤害的专属来源，与元素充能互斥。");
+
+        add("modifier.tcdex.exclusive", "与 %s 互斥，无法同时添加");
+
         add("effect.tcdex.devour", "吞噬");
+        add("effect.tcdex.war_banner", "战争旗帜");
+        add("effect.tcdex.amplified", "增幅");
 
         add("modifier.tcdex.all_permitted", "万般皆允");
         add("modifier.tcdex.all_permitted.flavor", "万物皆虚，万事皆允");
@@ -112,6 +136,14 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.combat_echo", "战斗回响");
         add("modifier.tcdex.combat_echo.flavor", "一击未尽，余响不绝");
         add("modifier.tcdex.combat_echo.description", "近战命中后，追加一次本击实际伤害 50% 的伤害");
+
+        add("modifier.tcdex.synthetic_hands", "合成感受器");
+        add("modifier.tcdex.synthetic_hands.flavor", "敌众我寡，愈战愈勇");
+        add("modifier.tcdex.synthetic_hands.description", "被 3 个或更多敌对生物包围时，近战伤害 +200%；近战击杀回复 2 点生命。");
+
+        add("modifier.tcdex.burning_fists", "燃烧之拳");
+        add("modifier.tcdex.burning_fists.flavor", "虫神的饥渴，燃烧于每一拳");
+        add("modifier.tcdex.burning_fists.description", "近战击杀点燃燃烧之拳：每层近战伤害 +40%（最多 5 层），加成随时间衰减；等级 2 起提供额外武器攻击力（+2，等级 3 +4）。");
 
         add("hud.tcdex.eager_cooldown", "急切冷却");
         add("hud.tcdex.all_permitted.yun", "万事皆允");

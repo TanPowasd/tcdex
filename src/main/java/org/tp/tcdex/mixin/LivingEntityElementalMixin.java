@@ -23,6 +23,7 @@ import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.network.MonsterShieldSyncPacket;
 import org.tp.tcdex.network.PacketHandler;
+import org.tp.tcdex.shield.PrismShieldConfig;
 import net.minecraftforge.network.PacketDistributor;
 
 import java.util.EnumMap;
@@ -74,19 +75,9 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     @Unique
     private long tcdex$lastShieldHitTime;
 
-    /** 棱镜盾：回复计时器（每 5 tick 一跳） */
+    /** 棱镜盾：回复计时器（每回复周期一跳） */
     @Unique
     private int tcdex$shieldRegenCounter;
-
-    /** 棱镜盾：脱战延迟（tick，10 秒） */
-    @Unique
-    private static final int PRISM_SHIELD_REGEN_DELAY = 200;
-    /** 棱镜盾：回复周期（每 5 tick 一跳） */
-    @Unique
-    private static final int PRISM_SHIELD_REGEN_CYCLE = 5;
-    /** 棱镜盾：每跳回复 = 最大护盾值 × 10% */
-    @Unique
-    private static final float PRISM_SHIELD_REGEN_PERCENT = 0.1f;
 
     // ===== IElementalEntity 实现 =====
 
@@ -311,18 +302,18 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
             }
         }
 
-        // ===== 棱镜盾：脱战回复 =====
-        // 受击（markShieldHit）后 10 秒未受伤 → 每 5 tick 回复 10% 最大护盾值（Boss 棱镜盾专属）。
+        // ===== 棱镜盾：脱战回复（参数配置化，见 PrismShieldConfig） =====
+        // 受击（markShieldHit）后脱战延迟未受伤 → 每回复周期回 10% 最大护盾值（Boss 棱镜盾专属）。
         // 棱镜伤害打穿（permanent）会清除元素 → 永久不再回复；
         // 非棱镜伤害打穿会保留元素 → 护盾从 0 开始重新回复（长满）。
         if (tcdex$shieldElement == ElementType.PRISM) {
             float maxShield = self.getMaxHealth() * 0.5f;
             if (tcdex$shieldAmount < maxShield
-                    && level.getGameTime() - tcdex$lastShieldHitTime >= PRISM_SHIELD_REGEN_DELAY) {
+                    && level.getGameTime() - tcdex$lastShieldHitTime >= PrismShieldConfig.getRegenDelayTicks()) {
                 tcdex$shieldRegenCounter++;
-                if (tcdex$shieldRegenCounter >= PRISM_SHIELD_REGEN_CYCLE) {
+                if (tcdex$shieldRegenCounter >= PrismShieldConfig.getRegenCycle()) {
                     tcdex$shieldRegenCounter = 0;
-                    tcdex$shieldAmount = Math.min(maxShield, tcdex$shieldAmount + maxShield * PRISM_SHIELD_REGEN_PERCENT);
+                    tcdex$shieldAmount = Math.min(maxShield, tcdex$shieldAmount + maxShield * PrismShieldConfig.getRegenPercent());
                     tcdex$broadcastShield();
                 }
             } else {

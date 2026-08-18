@@ -1,0 +1,6 @@
+# TCDEX texture generator config
+# Fluid: <fluid_name>,<hex_color>[,style]     style: molten|water|simple (default molten)
+# Item:  item:<item_name>,<hex_color>          -> 16x16 ingot icon
+#
+# Add new fluids/materials here, then run:
+#   java tools/texturegen/TextureGenerator.java

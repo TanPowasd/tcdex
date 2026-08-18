@@ -23,13 +23,17 @@ import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.ElementalModifier;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
+import org.tp.tcdex.shield.PrismShieldConfig;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import java.util.List;
 import java.util.Locale;
+
+import javax.annotation.Nullable;
 
 /**
  * 伤害类型体系（命运2：动能武器 vs 元素武器 + 元素护盾破盾）。
@@ -54,8 +58,6 @@ public class ElementalDamageEvents {
     private static final float MATCH_EFFICIENCY = 2.0f;
     /** 不匹配/动能破盾效率 */
     private static final float MISMATCH_EFFICIENCY = 0.5f;
-    /** 棱镜盾：动能磨损效率（对应"90% 减免"：盾承伤 ×10，打得最慢） */
-    private static final float PRISM_KINETIC_EFFICIENCY = 0.1f;
     /** 破盾爆炸：目标最大生命 × 10% */
     private static final float BREAK_HEALTH_PERCENT = 0.1f;
     /** 破盾爆炸半径 */
@@ -86,8 +88,8 @@ public class ElementalDamageEvents {
             return;
         }
 
-        // 玩家手持匠魂工具上的元素充能词条（主手优先；取第一个生效；null = 动能武器）
-        // 首次生效时在工具 NBT 中固化随机元素（之后不可改变）
+        // 玩家手持匠魂工具上的棱镜共鸣/元素充能词条（主手优先；取第一个生效；null = 动能武器）
+        // 棱镜共鸣固定棱镜伤害（专属来源，与元素充能互斥；若经命令强加两者，棱镜共鸣优先）
         ToolStack tool = null;
         ElementType element = null;
         for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
@@ -95,7 +97,12 @@ public class ElementalDamageEvents {
             if (candidate == null) {
                 continue;
             }
-            ElementalModifier elemental = findElemental(candidate);
+            if (findModifier(candidate, PrismResonanceModifier.class) != null) {
+                tool = candidate;
+                element = ElementType.PRISM;
+                break;
+            }
+            ElementalModifier elemental = findModifier(candidate, ElementalModifier.class);
             if (elemental != null) {
                 tool = candidate;
                 element = elemental.getElement(candidate);
@@ -168,8 +175,10 @@ public class ElementalDamageEvents {
         // 伤害打入护盾（按效率换算），返回溢出
         float overflow = targetData.consumeShield(amount * efficiency);
         if (overflow > 0) {
-            // 破盾：爆炸 + 目标获得护盾元素状态
-            shieldBreak(target, shieldElement);
+            // 破盾：爆炸 + 目标获得护盾元素状态（破盾 hook 可调整爆炸伤害/触发联动）
+            float breakDamage = target.getMaxHealth() * BREAK_HEALTH_PERCENT;
+            breakDamage = dispatchShieldBreak(tool, target, shieldElement, breakDamage, player);
+            shieldBreak(target, shieldElement, breakDamage);
             // 溢出伤害按原效率折算回真实值，以攻击类型结算
             target.hurt(attackSource(player, attackElement), overflow / efficiency);
             if (TcdexDebug.isElementalEnabled()) {
@@ -200,14 +209,14 @@ public class ElementalDamageEvents {
      */
     private static void handlePrismShield(LivingHurtEvent event, LivingEntity target, IElementalEntity targetData,
                                           Player player, ToolStack tool, ElementType attackElement) {
-        // 磨损效率：棱镜匹配 ×2；动能 ×0.1（90% 减免）；其他元素 ×0.5（50% 减免）
+        // 磨损效率（配置化）：棱镜匹配；动能；其他元素
         float efficiency;
         if (attackElement == ElementType.PRISM) {
-            efficiency = MATCH_EFFICIENCY;
+            efficiency = PrismShieldConfig.getMatchEfficiency();
         } else if (attackElement == null) {
-            efficiency = PRISM_KINETIC_EFFICIENCY;
+            efficiency = PrismShieldConfig.getKineticEfficiency();
         } else {
-            efficiency = MISMATCH_EFFICIENCY;
+            efficiency = PrismShieldConfig.getElementEfficiency();
         }
         // 元素攻击 hook 联动：工具上词条可调整破盾效率
         efficiency = dispatchShieldEfficiency(tool, ElementType.PRISM, efficiency);
@@ -225,8 +234,10 @@ public class ElementalDamageEvents {
         boolean prismAttack = attackElement == ElementType.PRISM;
         float overflow = targetData.consumeShield(amount * efficiency, prismAttack);
         if (overflow > 0) {
-            // 破盾：爆炸 + 目标获得棱镜状态；元素攻击保留（分配时固化）
-            shieldBreak(target, ElementType.PRISM);
+            // 破盾：爆炸 + 目标获得棱镜状态（破盾 hook 可调整爆炸伤害/触发联动）；元素攻击保留（分配时固化）
+            float breakDamage = target.getMaxHealth() * BREAK_HEALTH_PERCENT;
+            breakDamage = dispatchShieldBreak(tool, target, ElementType.PRISM, breakDamage, player);
+            shieldBreak(target, ElementType.PRISM, breakDamage);
             // 破盾那击：溢出伤害按效率折算回真实值，以攻击类型结算（破盾后伤害才能打到血量）
             target.hurt(attackSource(player, attackElement), overflow / efficiency);
             if (TcdexDebug.isElementalEnabled()) {
@@ -269,11 +280,27 @@ public class ElementalDamageEvents {
         return efficiency;
     }
 
+    /** 破盾 hook 派发：工具上词条链式调整破盾爆炸伤害 + 触发破盾回调 */
+    private static float dispatchShieldBreak(ToolStack tool, LivingEntity target, ElementType shieldElement,
+                                             float damage, @Nullable Player attacker) {
+        if (tool == null) {
+            return damage;
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            damage = entry.getHook(TcdexHooks.SHIELD_BREAK)
+                    .modifyBreakExplosion(tool, entry, target, shieldElement, damage);
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            entry.getHook(TcdexHooks.SHIELD_BREAK)
+                    .onShieldBreak(tool, entry, target, shieldElement, attacker);
+        }
+        return damage;
+    }
+
     /** 破盾演出：AOE 爆炸（吃护盾元素抗性）+ 目标获得护盾元素状态（50 层）。只影响非玩家实体（命运2：破盾爆炸不伤玩家） */
-    private static void shieldBreak(LivingEntity target, ElementType shieldElement) {
+    private static void shieldBreak(LivingEntity target, ElementType shieldElement, float baseDamage) {
         Level level = target.level();
-        float resistance = ElementManager.getResistance(target, shieldElement);
-        float damage = target.getMaxHealth() * BREAK_HEALTH_PERCENT * resistance;
+        float damage = baseDamage * ElementManager.getResistance(target, shieldElement);
         DamageSource source = ModDamageSources.element(target, shieldElement);
         for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, target.getBoundingBox().inflate(BREAK_RADIUS), e -> e != target && e.isAlive() && !(e instanceof Player))) {
             entity.hurt(source, damage);
@@ -301,14 +328,14 @@ public class ElementalDamageEvents {
         return tool.isBroken() ? null : tool;
     }
 
-    /** 查找工具上的元素充能词条（第一个生效） */
-    private static ElementalModifier findElemental(ToolStack tool) {
+    /** 查找工具上的指定词条（第一个生效） */
+    private static <T extends slimeknights.tconstruct.library.modifiers.Modifier> T findModifier(ToolStack tool, Class<T> type) {
         if (tool == null) {
             return null;
         }
         for (ModifierEntry entry : tool.getModifierList()) {
-            if (entry.getModifier() instanceof ElementalModifier elemental) {
-                return elemental;
+            if (type.isInstance(entry.getModifier())) {
+                return type.cast(entry.getModifier());
             }
         }
         return null;

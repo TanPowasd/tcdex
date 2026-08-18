@@ -20,32 +20,60 @@ import java.util.Set;
  */
 public final class ElementManager {
 
+    /** 怪物元素抗性/弱点表（entity id → 元素 → 倍率；配置 monsterElementResistances，运行时重载） */
     private static final Map<String, Map<ElementType, Float>> RESISTANCES = new HashMap<>();
 
-    static {
-        // 烈焰人：抗烈日，弱虚空/冰影
-        Map<ElementType, Float> blaze = new EnumMap<>(ElementType.class);
-        blaze.put(ElementType.SOLAR, 0.5f);
-        blaze.put(ElementType.VOID, 1.5f);
-        blaze.put(ElementType.STASIS, 1.5f);
-        RESISTANCES.put("minecraft:blaze", blaze);
+    /**
+     * 从 Forge 配置重载元素抗性表。
+     *
+     * @param entries 格式 "entity_registry_name:element_id=multiplier"，
+     *                如 "minecraft:blaze:solar=0.5"（抗烈日）、"minecraft:enderman:void=1.5"（弱虚空）
+     */
+    public static void reloadResistances(List<? extends String> entries) {
+        RESISTANCES.clear();
+        if (entries == null) {
+            return;
+        }
+        for (String entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            String trimmed = entry.trim();
+            int eq = trimmed.lastIndexOf('=');
+            if (eq <= 0 || eq == trimmed.length() - 1) {
+                continue;
+            }
+            String target = trimmed.substring(0, eq).trim();
+            String value = trimmed.substring(eq + 1).trim();
+            int colon = target.lastIndexOf(':');
+            if (colon <= 0 || colon == target.length() - 1) {
+                continue;
+            }
+            String entityId = target.substring(0, colon);
+            String elementId = target.substring(colon + 1);
+            ElementType element = parseElement(elementId);
+            if (element == null) {
+                continue;
+            }
+            try {
+                float multiplier = Float.parseFloat(value);
+                RESISTANCES.computeIfAbsent(entityId, k -> new EnumMap<>(ElementType.class))
+                        .put(element, Math.max(0.0f, multiplier));
+            } catch (NumberFormatException ignored) {
+                // 忽略无法解析的值
+            }
+        }
+    }
 
-        // 雪傀儡：弱烈日，抗冰影
-        Map<ElementType, Float> snowGolem = new EnumMap<>(ElementType.class);
-        snowGolem.put(ElementType.SOLAR, 1.5f);
-        snowGolem.put(ElementType.STASIS, 0.5f);
-        RESISTANCES.put("minecraft:snow_golem", snowGolem);
-
-        // 末影人：弱虚空，抗缚丝
-        Map<ElementType, Float> enderman = new EnumMap<>(ElementType.class);
-        enderman.put(ElementType.VOID, 1.5f);
-        enderman.put(ElementType.STRAND, 0.5f);
-        RESISTANCES.put("minecraft:enderman", enderman);
-
-        // 凋灵：抗虚空
-        Map<ElementType, Float> wither = new EnumMap<>(ElementType.class);
-        wither.put(ElementType.VOID, 0.5f);
-        RESISTANCES.put("minecraft:wither", wither);
+    /** 按元素 id 解析（solar/arc/void/stasis/strand/prism），无效返回 null */
+    @javax.annotation.Nullable
+    private static ElementType parseElement(String id) {
+        for (ElementType type : ElementType.values()) {
+            if (type.getId().equals(id)) {
+                return type;
+            }
+        }
+        return null;
     }
 
     // 护盾分配链 = 黑名单（绝对无盾）→ 提供器 → 加权随机（已取消静态表指定）

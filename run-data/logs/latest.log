@@ -1,33 +1,33 @@
-[188月2026 18:49:43.109] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgedatauserdev, --assetIndex, 5, --assetsDir, C:\Users\TanPowasd\.gradle\caches\forge_gradle\assets, --gameDir, ., --fml.forgeVersion, 47.4.21, --fml.mcVersion, 1.20.1, --fml.forgeGroup, net.minecraftforge, --fml.mcpVersion, 20230612.114412, --mixin, true, --mod, tcdex, --all, --output, F:\Code\GitHub\TCDEX\TCDEX\src\generated\resources, --existing, F:\Code\GitHub\TCDEX\TCDEX\src\main\resources, --mixin.config, tcdex.mixins.json]
-[188月2026 18:49:43.113] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher 10.0.9+10.0.9+main.dcd20f30 starting: java version 17.0.12 by Oracle Corporation; OS Windows 11 arch amd64 version 10.0
-[188月2026 18:49:43.207] [main/INFO] [net.minecraftforge.fml.loading.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgedatauserdev
-[188月2026 18:49:43.256] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.5 Source=union:/C:/Users/TanPowasd/.gradle/caches/modules-2/files-2.1/org.spongepowered/mixin/0.8.5/9d1c0c3a304ae6697ecd477218fa61b850bf57fc/mixin-0.8.5.jar%23128!/ Service=ModLauncher Env=CLIENT
-[188月2026 18:49:43.456] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\javafmllanguage\1.20.1-47.4.21\8e87b76ca678e322f14b585319f3eceac40f063a\javafmllanguage-1.20.1-47.4.21.jar is missing mods.toml file
-[188月2026 18:49:43.458] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\lowcodelanguage\1.20.1-47.4.21\fbe5d4760de494e424966e6f021fa42c6fd31447\lowcodelanguage-1.20.1-47.4.21.jar is missing mods.toml file
-[188月2026 18:49:43.460] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\mclanguage\1.20.1-47.4.21\44319630870edd2f067f6541582d5c36b196ffa7\mclanguage-1.20.1-47.4.21.jar is missing mods.toml file
-[188月2026 18:49:43.462] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\fmlcore\1.20.1-47.4.21\bb5521a74689ba95a215548882b8e116ee4f0e4a\fmlcore-1.20.1-47.4.21.jar is missing mods.toml file
-[188月2026 18:49:43.538] [main/INFO] [net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator/]: No dependencies to load found. Skipping!
-[188月2026 18:49:45.011] [main/INFO] [mixin/]: Compatibility level set to JAVA_17
-[188月2026 18:49:45.017] [main/INFO] [cpw.mods.modlauncher.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgedatauserdev' with arguments [--gameDir, ., --assetsDir, C:\Users\TanPowasd\.gradle\caches\forge_gradle\assets, --assetIndex, 5, --mod, tcdex, --all, --output, F:\Code\GitHub\TCDEX\TCDEX\src\generated\resources, --existing, F:\Code\GitHub\TCDEX\TCDEX\src\main\resources]
-[188月2026 18:49:45.094] [main/WARN] [mixin/]: Reference map 'tcdex.refmap.json' for tcdex.mixins.json could not be read. If this is a development environment you can ignore this message
-[188月2026 18:49:45.429] [main/INFO] [net.minecraftforge.data.loading.DatagenModLoader/]: Initializing Data Gatherer for mods [tcdex]
-[188月2026 18:49:48.481] [modloading-worker-0/INFO] [net.minecraftforge.common.ForgeMod/FORGEMOD]: Forge mod loading, version 47.4.21, for MC 1.20.1 with MCP 20230612.114412
-[188月2026 18:49:48.482] [modloading-worker-0/INFO] [net.minecraftforge.common.MinecraftForge/FORGE]: MinecraftForge v47.4.21 Initialized
-[188月2026 18:49:48.732] [modloading-worker-0/INFO] [mezz.jei.library.load.PluginCaller/]: Sending ConfigManager...
-[188月2026 18:49:48.757] [modloading-worker-0/INFO] [mezz.jei.library.load.PluginCaller/]: Sending ConfigManager took 23.05 ms
-[188月2026 18:49:50.710] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/C:/Users/TanPowasd/.gradle/caches/forge_gradle/minecraft_user_repo/net/minecraftforge/forge/1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1/forge-1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1-recomp.jar%23191!/assets/.mcassetsroot' uses unexpected schema
-[188月2026 18:49:50.710] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/C:/Users/TanPowasd/.gradle/caches/forge_gradle/minecraft_user_repo/net/minecraftforge/forge/1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1/forge-1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1-recomp.jar%23191!/data/.mcassetsroot' uses unexpected schema
-[188月2026 18:49:50.938] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Registries
-[188月2026 18:49:50.951] [main/INFO] [net.minecraft.data.DataGenerator/]: Registries finished after 11 ms
-[188月2026 18:49:50.951] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Tags for minecraft:damage_type mod id vanilla
-[188月2026 18:49:50.960] [main/INFO] [net.minecraft.data.DataGenerator/]: Tags for minecraft:damage_type mod id vanilla finished after 9 ms
-[188月2026 18:49:50.960] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: TCDEX Modifier Recipes
-[188月2026 18:49:50.962] [main/INFO] [net.minecraft.data.DataGenerator/]: TCDEX Modifier Recipes finished after 2 ms
-[188月2026 18:49:50.963] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Languages: en_us
-[188月2026 18:49:50.964] [main/INFO] [net.minecraft.data.DataGenerator/]: Languages: en_us finished after 1 ms
-[188月2026 18:49:50.964] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Languages: zh_cn
-[188月2026 18:49:50.965] [main/INFO] [net.minecraft.data.DataGenerator/]: Languages: zh_cn finished after 0 ms
-[188月2026 18:49:50.965] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Item Models: tcdex
-[188月2026 18:49:50.972] [main/INFO] [net.minecraft.data.DataGenerator/]: Item Models: tcdex finished after 7 ms
-[188月2026 18:49:50.972] [main/INFO] [net.minecraft.data.DataGenerator/]: All providers took: 34 ms
-[188月2026 18:49:50.978] [main/INFO] [net.minecraft.data.HashCache/]: Caching: total files: 16, old count: 0, new count: 17, removed stale: 0, written: 16
+[188月2026 21:04:11.913] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgedatauserdev, --assetIndex, 5, --assetsDir, C:\Users\TanPowasd\.gradle\caches\forge_gradle\assets, --gameDir, ., --fml.forgeVersion, 47.4.21, --fml.mcVersion, 1.20.1, --fml.forgeGroup, net.minecraftforge, --fml.mcpVersion, 20230612.114412, --mixin, true, --mod, tcdex, --all, --output, F:\Code\GitHub\TCDEX\TCDEX\src\generated\resources, --existing, F:\Code\GitHub\TCDEX\TCDEX\src\main\resources, --mixin.config, tcdex.mixins.json]
+[188月2026 21:04:11.917] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher 10.0.9+10.0.9+main.dcd20f30 starting: java version 17.0.12 by Oracle Corporation; OS Windows 11 arch amd64 version 10.0
+[188月2026 21:04:12.007] [main/INFO] [net.minecraftforge.fml.loading.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgedatauserdev
+[188月2026 21:04:12.050] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.5 Source=union:/C:/Users/TanPowasd/.gradle/caches/modules-2/files-2.1/org.spongepowered/mixin/0.8.5/9d1c0c3a304ae6697ecd477218fa61b850bf57fc/mixin-0.8.5.jar%23128!/ Service=ModLauncher Env=CLIENT
+[188月2026 21:04:12.256] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\javafmllanguage\1.20.1-47.4.21\8e87b76ca678e322f14b585319f3eceac40f063a\javafmllanguage-1.20.1-47.4.21.jar is missing mods.toml file
+[188月2026 21:04:12.258] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\lowcodelanguage\1.20.1-47.4.21\fbe5d4760de494e424966e6f021fa42c6fd31447\lowcodelanguage-1.20.1-47.4.21.jar is missing mods.toml file
+[188月2026 21:04:12.261] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\mclanguage\1.20.1-47.4.21\44319630870edd2f067f6541582d5c36b196ffa7\mclanguage-1.20.1-47.4.21.jar is missing mods.toml file
+[188月2026 21:04:12.263] [main/WARN] [net.minecraftforge.fml.loading.moddiscovery.ModFileParser/LOADING]: Mod file C:\Users\TanPowasd\.gradle\caches\modules-2\files-2.1\net.minecraftforge\fmlcore\1.20.1-47.4.21\bb5521a74689ba95a215548882b8e116ee4f0e4a\fmlcore-1.20.1-47.4.21.jar is missing mods.toml file
+[188月2026 21:04:12.340] [main/INFO] [net.minecraftforge.fml.loading.moddiscovery.JarInJarDependencyLocator/]: No dependencies to load found. Skipping!
+[188月2026 21:04:13.865] [main/INFO] [mixin/]: Compatibility level set to JAVA_17
+[188月2026 21:04:13.868] [main/INFO] [cpw.mods.modlauncher.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgedatauserdev' with arguments [--gameDir, ., --assetsDir, C:\Users\TanPowasd\.gradle\caches\forge_gradle\assets, --assetIndex, 5, --mod, tcdex, --all, --output, F:\Code\GitHub\TCDEX\TCDEX\src\generated\resources, --existing, F:\Code\GitHub\TCDEX\TCDEX\src\main\resources]
+[188月2026 21:04:13.949] [main/WARN] [mixin/]: Reference map 'tcdex.refmap.json' for tcdex.mixins.json could not be read. If this is a development environment you can ignore this message
+[188月2026 21:04:14.261] [main/INFO] [net.minecraftforge.data.loading.DatagenModLoader/]: Initializing Data Gatherer for mods [tcdex]
+[188月2026 21:04:17.465] [modloading-worker-0/INFO] [net.minecraftforge.common.ForgeMod/FORGEMOD]: Forge mod loading, version 47.4.21, for MC 1.20.1 with MCP 20230612.114412
+[188月2026 21:04:17.466] [modloading-worker-0/INFO] [net.minecraftforge.common.MinecraftForge/FORGE]: MinecraftForge v47.4.21 Initialized
+[188月2026 21:04:17.689] [modloading-worker-0/INFO] [mezz.jei.library.load.PluginCaller/]: Sending ConfigManager...
+[188月2026 21:04:17.709] [modloading-worker-0/INFO] [mezz.jei.library.load.PluginCaller/]: Sending ConfigManager took 17.23 ms
+[188月2026 21:04:19.656] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/C:/Users/TanPowasd/.gradle/caches/forge_gradle/minecraft_user_repo/net/minecraftforge/forge/1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1/forge-1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1-recomp.jar%23191!/assets/.mcassetsroot' uses unexpected schema
+[188月2026 21:04:19.657] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/C:/Users/TanPowasd/.gradle/caches/forge_gradle/minecraft_user_repo/net/minecraftforge/forge/1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1/forge-1.20.1-47.4.21_mapped_parchment_2023.09.03-1.20.1-recomp.jar%23191!/data/.mcassetsroot' uses unexpected schema
+[188月2026 21:04:19.871] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Registries
+[188月2026 21:04:19.878] [main/INFO] [net.minecraft.data.DataGenerator/]: Registries finished after 7 ms
+[188月2026 21:04:19.878] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Tags for minecraft:damage_type mod id vanilla
+[188月2026 21:04:19.886] [main/INFO] [net.minecraft.data.DataGenerator/]: Tags for minecraft:damage_type mod id vanilla finished after 7 ms
+[188月2026 21:04:19.886] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: TCDEX Modifier Recipes
+[188月2026 21:04:19.887] [main/INFO] [net.minecraft.data.DataGenerator/]: TCDEX Modifier Recipes finished after 0 ms
+[188月2026 21:04:19.887] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Languages: en_us
+[188月2026 21:04:19.888] [main/INFO] [net.minecraft.data.DataGenerator/]: Languages: en_us finished after 1 ms
+[188月2026 21:04:19.888] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Languages: zh_cn
+[188月2026 21:04:19.890] [main/INFO] [net.minecraft.data.DataGenerator/]: Languages: zh_cn finished after 0 ms
+[188月2026 21:04:19.890] [main/INFO] [net.minecraft.data.DataGenerator/]: Starting provider: Item Models: tcdex
+[188月2026 21:04:19.895] [main/INFO] [net.minecraft.data.DataGenerator/]: Item Models: tcdex finished after 5 ms
+[188月2026 21:04:19.895] [main/INFO] [net.minecraft.data.DataGenerator/]: All providers took: 23 ms
+[188月2026 21:04:19.900] [main/INFO] [net.minecraft.data.HashCache/]: Caching: total files: 16, old count: 16, new count: 17, removed stale: 0, written: 2

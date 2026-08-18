@@ -15,10 +15,11 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.EntityHitResult;
 import org.tp.tcdex.Tcdex;
-import org.tp.tcdex.effect.TcdexEffects;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.modifier.ModifierExclusivity;
 import org.tp.tcdex.modifier.base.TcdexBaseModifier;
+import org.tp.tcdex.modifier.hook.TcdexHooks;
 import slimeknights.mantle.client.TooltipKey;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
@@ -47,9 +48,6 @@ public class ElementalModifier extends TcdexBaseModifier {
 
     /** 工具持久数据中固化的元素 key（写入后不可改变；命令/API 可据此指定） */
     public static final ResourceLocation ELEMENT_KEY = ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "elemental_element");
-
-    /** 吞噬 buff 刷新时长（tick，10 秒） */
-    private static final int DEVOUR_DURATION = 200;
 
     public ElementalModifier() {
     }
@@ -126,6 +124,12 @@ public class ElementalModifier extends TcdexBaseModifier {
         return super.getDisplayName();
     }
 
+    /** 互斥校验（注册于 ModifierExclusivity）：与棱镜共鸣互斥，冲突时返回提示 */
+    @Override
+    protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier) {
+        return ModifierExclusivity.validate(tool, modifier);
+    }
+
     /** 按元素 id 解析元素类型（solar/arc/void/stasis/strand），无效返回 null */
     public static ElementType parseElement(String id) {
         if (id == null || id.isEmpty()) {
@@ -143,11 +147,13 @@ public class ElementalModifier extends TcdexBaseModifier {
      * 命中结算（全元素关键词化）：只播放粒子并给目标叠加元素状态。
      * 灼烧 DoT / 冻结减速由 Mixin tick 结算，Volatile/Jolt/Shatter/Sever 由受击联动结算，
      * 伤害数值由伤害转化事件负责（动能 → 元素），modifier 本身不再施加任何即时效果。
+     * 近战路径派发 ELEMENTAL_STATE_APPLY hook（词条可调整层数/时长）；远程路径无工具上下文不派发。
      *
+     * @param tool    攻击工具（远程路径传 null）
      * @param element 本武器固化的元素
      * @param target  受击目标
      */
-    private void applyElement(ElementType element, LivingEntity target) {
+    private void applyElement(IToolStackView tool, ElementType element, LivingEntity target) {
         if (target.level().isClientSide) {
             return;
         }
@@ -159,9 +165,21 @@ public class ElementalModifier extends TcdexBaseModifier {
                     15, 0.3, 0.3, 0.3, 0.1);
         }
 
-        // 施加元素状态（Mixin 注入怪物身上）：层数叠加，满 100 触发关键词（Ignite/冻结），
-        // 标记型元素（虚空/电弧/缚丝）由 ElementalStateEvents 在受击时联动结算
-        IElementalEntity.of(target).addElementState(element, element.getStacksPerHit(), element.getStateDuration());
+        // 元素状态施加（ELEMENTAL_STATE_APPLY hook 链式调整层数/时长）
+        float stacks = element.getStacksPerHit();
+        int duration = element.getStateDuration();
+        if (tool != null) {
+            for (ModifierEntry entry : tool.getModifierList()) {
+                stacks = entry.getHook(TcdexHooks.ELEMENTAL_STATE_APPLY)
+                        .modifyStateStacks(tool, entry, element, stacks);
+                duration = entry.getHook(TcdexHooks.ELEMENTAL_STATE_APPLY)
+                        .modifyStateDuration(tool, entry, element, duration);
+            }
+        }
+        if (stacks > 0 && duration > 0) {
+            // 层数叠加，满 100 触发关键词（Ignite/冻结）；标记型元素（虚空/电弧/缚丝/棱镜）由受击联动结算
+            IElementalEntity.of(target).addElementState(element, stacks, duration);
+        }
     }
 
     @Override
@@ -171,7 +189,7 @@ public class ElementalModifier extends TcdexBaseModifier {
         if (attacker == null || target == null) {
             return;
         }
-        applyElement(getElement(tool), target);
+        applyElement(tool, getElement(tool), target);
     }
 
     @Override
@@ -181,7 +199,7 @@ public class ElementalModifier extends TcdexBaseModifier {
         if (attacker == null || target == null) {
             return false;
         }
-        applyElement(getElement(persistentData), target);
+        applyElement(null, getElement(persistentData), target);
         return false;
     }
 
@@ -206,23 +224,7 @@ public class ElementalModifier extends TcdexBaseModifier {
         }
         IElementalEntity targetData = IElementalEntity.of(target);
         switch (element) {
-            case ARC -> {
-                if (targetData.getElementStacks(ElementType.ARC) > 0) {
-                    attacker.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SPEED, 100, 1, false, true));
-                    attacker.addEffect(new MobEffectInstance(MobEffects.DIG_SPEED, 100, 1, false, true));
-                }
-            }
-            case VOID -> {
-                // 吞噬：需玩家持有「吞噬」buff 才触发
-                if (targetData.getElementStacks(ElementType.VOID) > 0 && attacker.hasEffect(TcdexEffects.DEVOUR.get())) {
-                    // 回复满生命值
-                    attacker.setHealth(attacker.getMaxHealth());
-                    // 刷新吞噬 buff 时长（保留原 amplifier）
-                    MobEffectInstance current = attacker.getEffect(TcdexEffects.DEVOUR.get());
-                    int amplifier = current != null ? current.getAmplifier() : 0;
-                    attacker.addEffect(new MobEffectInstance(TcdexEffects.DEVOUR.get(), DEVOUR_DURATION, amplifier, false, true));
-                }
-            }
+            // 电弧击杀获得增幅已改为独立 buff 机制（AmplifiedEvents：击杀带电弧标记目标 → Amplified），不再由词条处理
             case STRAND -> {
                 if (targetData.getElementStacks(ElementType.STRAND) > 0) {
                     attacker.addEffect(new MobEffectInstance(MobEffects.DAMAGE_RESISTANCE, 100, 0, false, true));

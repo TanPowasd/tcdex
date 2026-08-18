@@ -183,10 +183,22 @@ ElementType attack = TcdexElementAPI.getMonsterAttackElement(entity);
 例如 150 点棱镜盾，20 点虚空伤害 ×0.5 = 磨损 10/击，正好 **15 击打破**。
 
 打穿结算区分来源：
-- **棱镜伤害打穿** → 护盾**永久失效**（清除护盾元素，不再回复）
+- **棱镜伤害打穿**（来自专属词条「棱镜共鸣」，见 §4.5）→ 护盾**永久失效**（清除护盾元素，不再回复）
 - **非棱镜伤害打穿** → 护盾元素保留，**脱战 10 秒后仍会回复**（每 5 tick 10%，重新长满）
 
 破盾后（盾值 0 期间）伤害正常打到血量；Boss 的**元素攻击保留**（攻击元素在分配时固化，不随护盾消失）。
+磨损效率、减免与回复参数全部可在配置中调整（`prismShield*` 系列）。
+
+### 2.9 其他 mod 软联动（不作为前置依赖）
+
+与 JEI 相同的软依赖方式（mods.toml `mandatory = false`），未安装对应 mod 时自动跳过，零类引用零风险：
+
+| Mod | 联动内容 |
+|---|---|
+| **冰与火之舞** `iceandfire` | 火龙 → 烈日盾/攻击；冰龙 → 冰影盾/攻击；闪电龙 → 电弧盾/攻击（护盾提供器注册，攻击元素同源自动生效） |
+| **铁魔法** `irons_spellbooks` | 法术命中元素化：火焰/寒冰/雷电/虚空类法术弹射物命中目标（玩家/生物）→ 施加对应元素状态（层数保守缩放），灼烧/冻结/Jolt/Weaken 等关键词自动联动 |
+
+> 两者均未安装时：护盾提供器不注册、法术事件按实体注册名匹配自然不命中，不影响 TCDEX 本体任何功能。
 
 ---
 
@@ -294,7 +306,7 @@ modEventBus.addListener(MyModifier::registerModifier);
 | mining | `modifierAfterBlockBreak` / `modifierStartHarvest` / `modifierFinishHarvest` / `modifierOnBreakSpeed` / `modifierModifyBreakSpeed` / `modifierUpdateHarvestEnchantments` / `modifierRemoveBlock` |
 | ranged | `modifierFindAmmo` / `modifierShrinkAmmo` / `modifierOnLauncherHitEntity/Block` / `modifierOnProjectileFuseFinish` / `modifierOnProjectileHitEntity/Block/HitsBlock` / `modifierOnProjectileLaunch` / `modifierOnProjectileShoot` / `modifierScheduleProjectileTask` / `modifierOnScheduledProjectileTask` |
 | special | `modifierAfterTransformBlock` / `modifierGetAmount/Capacity` / `modifierSetAmount` / `modifierAfterHarvest` / `modifierAfterShearEntity` / `modifierModifySlingAngle/Force` / `modifierAfterSlingLaunch` |
-| TCDEX | `modifierOnKillLivingTarget`（击杀） |
+| TCDEX | `modifierOnKillLivingTarget`（击杀）/ `modifierModifyBreakExplosion`、`modifierOnShieldBreak`（破盾）/ `modifierModifyAbsorbed`、`modifierModifyRegenRate`（玩家护盾）/ `modifierModifyStateStacks`、`modifierModifyStateDuration`（元素状态施加） |
 
 ### 4.2 击杀 Hook（KILLING_HOOK）
 
@@ -349,6 +361,18 @@ public class ElementalMasterModifier extends TcdexBaseModifier implements Elemen
 
 > 该接口的两个方法均为 `default`（返回原值），只覆写需要的即可。
 
+### 4.3.1 预置 Hook 总览（基类已全部注册，子类直接覆写 `modifierXxx`）
+
+| Hook | 派发时机 | 可覆写方法 |
+|---|---|---|
+| `KILLING_HOOK` | 工具击杀生物（LivingDeathEvent LOWEST） | `modifierOnKillLivingTarget` |
+| `ELEMENTAL_ATTACK` | 伤害转化/护盾结算（需手动 `addHook`） | `modifyElementalDamage` / `modifyShieldEfficiency` |
+| `SHIELD_BREAK` | 护盾（含棱镜盾）被打穿 | `modifierModifyBreakExplosion`（调整破盾爆炸伤害）/ `modifierOnShieldBreak`（联动回调） |
+| `PLAYER_SHIELD` | 玩家护盾吸收 / **每次脱战恢复会话开始时**（速率缓存，回复中不重复派发） | `modifierModifyAbsorbed`（调整吸收量）/ `modifierModifyRegenRate`（调整回复速率） |
+| `ELEMENTAL_STATE_APPLY` | 元素/棱镜词条近战命中施加状态（远程不派发） | `modifierModifyStateStacks` / `modifierModifyStateDuration` |
+
+> 预置 Hook 的接口与合并器均开放：附属 mod 可 `implements` 对应接口 + `addHook(this, TcdexHooks.XXX)` 接入，无需改动 TCDEX 源码。
+
 ### 4.4 注册自定义 ModuleHook（扩展模式）
 
 完全自定义 hook 类型（如你的 mod 需要"工具格挡"、"工具治疗"等新触发点），照 TCDEX 模式：
@@ -386,6 +410,34 @@ public class MyEvents {
     }
 }
 ```
+
+### 4.5 棱镜共鸣（Prism Resonance，内置词条）
+
+棱镜伤害的**专属词条**（命运2 Prismatic，`tcdex:prism_resonance`）：
+- 攻击整体转化为**棱镜伤害**——对任意元素护盾按匹配效率（×2）磨损，可**永久打破棱镜盾**（打穿后不再回复）
+- 命中施加棱镜标记 → 受击 **Refract 折射**（本击 25% 伤害溅射周围）
+- **与元素充能互斥**：两者不可同时打在同一工具上（词条工作台会拒绝添加，提示"与元素充能互斥"）
+
+### 4.6 词条互斥 API（ModifierExclusivity）
+
+匠魂 3.10 官方没有词条互斥 API，TCDEX 自实现了注册中心 `org.tp.tcdex.modifier.ModifierExclusivity`：
+
+```java
+// 一对互斥（自动双向登记）
+ModifierExclusivity.registerExclusive(
+        new ModifierId("yourmodid", "a"), new ModifierId("yourmodid", "b"));
+
+// 一组互斥（组内两两互斥）
+ModifierExclusivity.registerExclusiveGroup(id1, id2, id3);
+
+// 词条内接入校验：工具已有互斥词条时返回提示（匠魂词条工作台添加时拒绝）
+@Override
+protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier) {
+    return ModifierExclusivity.validate(tool, modifier);   // 冲突返回 "与 %s 互斥，无法同时添加"
+}
+```
+
+内置互斥集中在 `ModifierExclusivity.registerAll()` 注册（元素充能 ↔ 棱镜共鸣），新增互斥在那里追加一行即可。
 
 ---
 
@@ -455,18 +507,70 @@ elementWeightPrism = 0          # 棱镜不可通过元素充能获得（Boss �
 monsterElementalAttacks = true  # 怪物元素攻击总开关
 monsterElementalAttackChance = 1.0  # 每次命中施加元素状态的概率（0-1）
 
+# 元素抗性/弱点表（entityid:element=倍率，1.0 正常 / >1 弱点 / <1 抗性）
+monsterElementResistances = ["minecraft:blaze:solar=0.5", "minecraft:blaze:void=1.5", ...]
+
+# 棱镜盾（凋零/末影龙）
+prismShieldMatchEfficiency = 2.0    # 棱镜伤害磨损效率（匹配）
+prismShieldElementEfficiency = 0.5  # 其他元素磨损效率
+prismShieldKineticEfficiency = 0.1  # 动能磨损效率
+prismShieldElementReduction = 0.5   # 非玩家非棱镜伤害减免（0.5 = 50%）
+prismShieldKineticReduction = 0.1   # 非玩家动能伤害减免（0.1 = 90%）
+prismShieldRegenDelay = 10          # 脱战回复延迟（秒）
+prismShieldRegenCycle = 5           # 回复周期（tick）
+prismShieldRegenPercent = 0.1       # 每周期回复比例（10%）
+
 # 玩家护盾
 playerShieldEnabled = true
 playerShieldRatio = 1.0
 playerShieldRegenDelay = 5
 playerShieldRegenRate = 0.4
+playerShieldElementFactor = 0.8     # 带元素状态时护盾回复速率系数（1.0 = 无影响）
 playerShieldHud = true
 playerBuffHud = true
 ```
 
 ---
 
-## 8. 常见问题
+## 8. 纹理生成器（流体 / 材料图标）
+
+`tools/texturegen/TextureGenerator.java` —— 零依赖的独立 Java 工具（JDK 11+ 单文件运行），
+为新增流体与材料生成占位纹理，按 Forge 1.20.1 规范输出：
+
+```
+src/main/resources/assets/tcdex/textures/
+├── block/<name>_still.png      # 流体静止帧（多帧垂直堆叠动画）
+├── block/<name>_still.png.mcmeta  # 动画元数据（frametime 2）
+├── block/<name>_flow.png       # 流体流动帧（横向流动条纹）
+├── block/<name>_flow.png.mcmeta
+└── item/<name>.png             # 锭形材料图标（16x16）
+```
+
+**用法**（项目根目录）：
+
+```bash
+# 按 tools/texturegen/textures.txt 批量生成
+java tools/texturegen/TextureGenerator.java
+
+# 追加单个流体 / 物品
+java tools/texturegen/TextureGenerator.java --fluid molten_tcdexium FF8844 molten
+java tools/texturegen/TextureGenerator.java --item tcdexium_ingot FF8844
+
+# 参数：--size 32 --frames 4 --out <dir> --config <file>；--preview <png> 终端 ASCII 预览
+```
+
+**textures.txt 格式**（每行一条，`#` 注释）：
+
+```
+# 流体：<名称>,<十六进制颜色>[,风格]   风格：molten(熔融) | water(水) | simple(纯色)
+molten_prism,A78BFA,molten
+# 材料物品图标：item:<名称>,<十六进制颜色>
+item:prism_ingot,A78BFA
+```
+
+---
+
+## 9. 常见问题
 
 **Q：TCDEX 未安装时我的 mod 会崩溃吗？**
 声明 `mandatory = false` 依赖 + `ModList.isLoaded("tcdex")` 保护即可。只引用 API 类但不在未加载时调用是安全的（类在 TCDEX jar 中，你的 jar 不打包它）。
