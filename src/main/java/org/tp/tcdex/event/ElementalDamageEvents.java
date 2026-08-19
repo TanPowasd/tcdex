@@ -22,6 +22,7 @@ import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.ElementalModifier;
+import org.tp.tcdex.modifier.elemental.FiveForcesModifier;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
@@ -88,10 +89,12 @@ public class ElementalDamageEvents {
             return;
         }
 
-        // 玩家手持匠魂工具上的棱镜共鸣/元素充能词条（主手优先；取第一个生效；null = 动能武器）
+        // 玩家手持匠魂工具上的棱镜共鸣/元素充能/五项之力词条（主手优先；取第一个生效；null = 动能武器）
         // 棱镜共鸣固定棱镜伤害（专属来源，与元素充能互斥；若经命令强加两者，棱镜共鸣优先）
+        // 五项之力每次攻击随机元素（与元素充能互斥，权重遵循配置；命中施加对应元素状态）
         ToolStack tool = null;
         ElementType element = null;
+        boolean fiveForces = false;
         for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
             ToolStack candidate = asTool(stack);
             if (candidate == null) {
@@ -107,6 +110,12 @@ public class ElementalDamageEvents {
                 tool = candidate;
                 element = elemental.getElement(candidate);
                 candidate.updateStack(stack); // 固化写回
+                break;
+            }
+            if (findModifier(candidate, FiveForcesModifier.class) != null) {
+                tool = candidate;
+                element = ElementManager.rollElement(player.level().random); // 每次攻击随机
+                fiveForces = true;
                 break;
             }
             if (tool == null) {
@@ -135,6 +144,13 @@ public class ElementalDamageEvents {
             amount *= resistance;
             // 元素攻击 hook 联动：工具上词条可调整元素伤害
             amount = dispatchElementalDamage(tool, element, amount);
+            // 五项之力：命中施加本次 roll 到的元素状态（与伤害元素同源一致，走 ELEMENTAL_STATE_APPLY hook）
+            if (fiveForces) {
+                FiveForcesModifier.applyHitState(tool, target, element);
+            }
+        } else {
+            // 动能攻击 hook 联动：动能武器词条可调整动能伤害（目标参数开放：看目标是否带盾/带标记）
+            amount = dispatchKineticDamage(tool, target, amount);
         }
         event.setCanceled(true);
         target.invulnerableTime = 0;
@@ -157,8 +173,10 @@ public class ElementalDamageEvents {
         // 棱镜折射所有光 = 匹配所有盾：棱镜攻击对任意元素护盾都按匹配效率（×2）
         float efficiency = (attackElement == shieldElement || attackElement == ElementType.PRISM)
                 ? MATCH_EFFICIENCY : MISMATCH_EFFICIENCY;
-        // 元素攻击 hook 联动：工具上词条可调整破盾效率
-        efficiency = dispatchShieldEfficiency(tool, shieldElement, efficiency);
+        // 破盾效率 hook 联动：元素攻击走 ELEMENTAL_ATTACK，动能攻击走 KINETIC_ATTACK
+        efficiency = attackElement == null
+                ? dispatchKineticShieldEfficiency(tool, shieldElement, efficiency)
+                : dispatchShieldEfficiency(tool, shieldElement, efficiency);
 
         float amount = event.getAmount();
         event.setCanceled(true);
@@ -218,8 +236,10 @@ public class ElementalDamageEvents {
         } else {
             efficiency = PrismShieldConfig.getElementEfficiency();
         }
-        // 元素攻击 hook 联动：工具上词条可调整破盾效率
-        efficiency = dispatchShieldEfficiency(tool, ElementType.PRISM, efficiency);
+        // 破盾效率 hook 联动：元素攻击走 ELEMENTAL_ATTACK，动能攻击走 KINETIC_ATTACK
+        efficiency = attackElement == null
+                ? dispatchKineticShieldEfficiency(tool, ElementType.PRISM, efficiency)
+                : dispatchShieldEfficiency(tool, ElementType.PRISM, efficiency);
 
         float amount = event.getAmount();
         event.setCanceled(true);
@@ -276,6 +296,28 @@ public class ElementalDamageEvents {
         }
         for (ModifierEntry entry : tool.getModifierList()) {
             efficiency = entry.getHook(TcdexHooks.ELEMENTAL_ATTACK).modifyShieldEfficiency(tool, entry, shieldElement, efficiency);
+        }
+        return efficiency;
+    }
+
+    /** 动能攻击 hook 派发：工具上所有词条链式调整动能伤害 */
+    private static float dispatchKineticDamage(ToolStack tool, LivingEntity target, float amount) {
+        if (tool == null) {
+            return amount;
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            amount = entry.getHook(TcdexHooks.KINETIC_ATTACK).modifyKineticDamage(tool, entry, target, amount);
+        }
+        return amount;
+    }
+
+    /** 动能攻击 hook 派发：工具上所有词条链式调整动能破盾效率 */
+    private static float dispatchKineticShieldEfficiency(ToolStack tool, ElementType shieldElement, float efficiency) {
+        if (tool == null) {
+            return efficiency;
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            efficiency = entry.getHook(TcdexHooks.KINETIC_ATTACK).modifyKineticShieldEfficiency(tool, entry, shieldElement, efficiency);
         }
         return efficiency;
     }

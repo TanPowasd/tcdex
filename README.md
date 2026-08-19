@@ -306,7 +306,7 @@ modEventBus.addListener(MyModifier::registerModifier);
 | mining | `modifierAfterBlockBreak` / `modifierStartHarvest` / `modifierFinishHarvest` / `modifierOnBreakSpeed` / `modifierModifyBreakSpeed` / `modifierUpdateHarvestEnchantments` / `modifierRemoveBlock` |
 | ranged | `modifierFindAmmo` / `modifierShrinkAmmo` / `modifierOnLauncherHitEntity/Block` / `modifierOnProjectileFuseFinish` / `modifierOnProjectileHitEntity/Block/HitsBlock` / `modifierOnProjectileLaunch` / `modifierOnProjectileShoot` / `modifierScheduleProjectileTask` / `modifierOnScheduledProjectileTask` |
 | special | `modifierAfterTransformBlock` / `modifierGetAmount/Capacity` / `modifierSetAmount` / `modifierAfterHarvest` / `modifierAfterShearEntity` / `modifierModifySlingAngle/Force` / `modifierAfterSlingLaunch` |
-| TCDEX | `modifierOnKillLivingTarget`（击杀）/ `modifierModifyBreakExplosion`、`modifierOnShieldBreak`（破盾）/ `modifierModifyAbsorbed`、`modifierModifyRegenRate`（玩家护盾）/ `modifierModifyStateStacks`、`modifierModifyStateDuration`（元素状态施加） |
+| TCDEX | `modifierOnKillLivingTarget`（击杀）/ `modifierModifyBreakExplosion`、`modifierOnShieldBreak`（破盾）/ `modifierModifyAbsorbed`、`modifierModifyRegenRate`（玩家护盾）/ `modifierModifyBreakOverflow`、`modifierOnShieldBreak`（玩家护盾破碎）/ `modifierModifyStateStacks`、`modifierModifyStateDuration`（元素状态施加）/ `modifierModifyKeywordMultiplier`、`modifierModifyKeywordDamage`、`modifierModifyKeywordRadius`（元素关键词结算）/ `modifierModifyKineticDamage`、`modifierModifyKineticShieldEfficiency`（动能攻击） |
 
 ### 4.2 击杀 Hook（KILLING_HOOK）
 
@@ -369,9 +369,33 @@ public class ElementalMasterModifier extends TcdexBaseModifier implements Elemen
 | `ELEMENTAL_ATTACK` | 伤害转化/护盾结算（需手动 `addHook`） | `modifyElementalDamage` / `modifyShieldEfficiency` |
 | `SHIELD_BREAK` | 护盾（含棱镜盾）被打穿 | `modifierModifyBreakExplosion`（调整破盾爆炸伤害）/ `modifierOnShieldBreak`（联动回调） |
 | `PLAYER_SHIELD` | 玩家护盾吸收 / **每次脱战恢复会话开始时**（速率缓存，回复中不重复派发） | `modifierModifyAbsorbed`（调整吸收量）/ `modifierModifyRegenRate`（调整回复速率） |
+| `PLAYER_SHIELD_BREAK` | 玩家护盾被打穿（从有到无的当次受击） | `modifierModifyBreakOverflow`（减免溢出伤害，0 = 完全格挡）/ `modifierOnShieldBreak`（破碎联动回调：AOE/增益等） |
 | `ELEMENTAL_STATE_APPLY` | 元素/棱镜词条近战命中施加状态（远程不派发） | `modifierModifyStateStacks` / `modifierModifyStateDuration` |
+| `ELEMENTAL_KEYWORD` | 元素关键词结算（受击联动，目标带标记/冻结时） | `modifierModifyKeywordMultiplier`（Sever/Shatter/Weaken 倍率）/ `modifierModifyKeywordDamage`（Volatile 爆炸%/Jolt 伤害/Refract 溅射比）/ `modifierModifyKeywordRadius`（Volatile/Jolt/Refract 半径） |
+| `KINETIC_ATTACK` | 动能伤害转化/动能破盾结算（仅动能武器，与 ELEMENTAL_ATTACK 分支互斥） | `modifierModifyKineticDamage`（调整动能伤害）/ `modifierModifyKineticShieldEfficiency`（调整动能破盾效率，默认普通盾 ×0.5 / 棱镜盾 ×0.1） |
 
 > 预置 Hook 的接口与合并器均开放：附属 mod 可 `implements` 对应接口 + `addHook(this, TcdexHooks.XXX)` 接入，无需改动 TCDEX 源码。
+
+**关键词 hook 派发对象**：`ELEMENTAL_KEYWORD` 在关键词结算处（`ElementalStateEvents`）派发给**事件中持有匠魂工具的玩家**——攻击者为玩家（或玩家弹射物）时用攻击者的武器；怪物攻击玩家触发 Sever 反向结算时用被攻击玩家的武器；怪物互殴等无玩家参与场景不派发（用默认值）。
+
+```java
+// 增强 Jolt 连锁闪电（示例：电弧增幅词条）
+@Override
+protected float modifierModifyKeywordDamage(IToolStackView tool, ModifierEntry modifier, ElementType keyword, float damage) {
+    if (keyword == ElementType.ARC) {
+        return damage * 1.5f;   // 连锁伤害 +50%
+    }
+    return damage;
+}
+
+@Override
+protected float modifierModifyKeywordRadius(IToolStackView tool, ModifierEntry modifier, ElementType keyword, float radius) {
+    if (keyword == ElementType.ARC) {
+        return radius + 1.0f;   // 连锁半径 +1 格
+    }
+    return radius;
+}
+```
 
 ### 4.4 注册自定义 ModuleHook（扩展模式）
 
@@ -437,7 +461,54 @@ protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier
 }
 ```
 
-内置互斥集中在 `ModifierExclusivity.registerAll()` 注册（元素充能 ↔ 棱镜共鸣），新增互斥在那里追加一行即可。
+内置互斥集中在 `ModifierExclusivity.registerAll()` 注册（元素充能 ↔ 棱镜共鸣；动能词条「动能震颤/动能虹吸」↔ 元素体系；「五项之力」↔ 元素体系），新增互斥在那里追加一行即可。
+
+### 4.7 词条依赖判定（ModifierHelper）
+
+词条可声明**前置依赖**（"词条 A 需要词条 B"），由 `org.tp.tcdex.modifier.ModifierHelper` 提供判定：
+
+```java
+// 判定工具是否带元素充能词条且固化为指定元素（示例：电弧增幅需要元素充能-电弧）
+boolean ok = ModifierHelper.hasElementalCharge(tool, ElementType.ARC);
+
+// 通用词条存在性判定（按类型 / 按 id）
+boolean has = ModifierHelper.hasModifier(tool, ElementalModifier.class);
+boolean has2 = ModifierHelper.hasModifier(tool, new ModifierId("yourmodid", "xxx"));
+
+// 读取元素充能固化的元素（null = 无/未固化）
+ElementType element = ModifierHelper.getElementalChargeElement(tool);
+```
+
+词条在三个层面接入依赖（参考 TCDEX 电弧增幅 `ArcAmplifierModifier`）：
+
+```java
+// 1. 添加校验：不满足依赖时返回提示（词条工作台拒绝添加）
+@Override
+protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier) {
+    if (!ModifierHelper.hasElementalCharge(tool, ElementType.ARC)) {
+        return Component.translatable("modifier.tcdex.requires.elemental_arc");
+    }
+    return null;
+}
+
+// 2. 运行时兜底：不满足依赖时返回默认值（防命令强加）
+@Override
+protected float modifierModifyKeywordDamage(IToolStackView tool, ModifierEntry modifier, ElementType keyword, float damage) {
+    if (keyword == ElementType.ARC && ModifierHelper.hasElementalCharge(tool, ElementType.ARC)) {
+        return damage * 1.5f;
+    }
+    return damage;
+}
+
+// 3. Tooltip：未满足依赖时显示红色需求提示
+@Override
+protected void modifierAddTooltip(IToolStackView tool, ModifierEntry modifier, Player player, List<Component> tooltip, TooltipKey tooltipKey, TooltipFlag tooltipFlag) {
+    if (!ModifierHelper.hasElementalCharge(tool, ElementType.ARC)) {
+        tooltip.add(Component.translatable("modifier.tcdex.requires.elemental_arc")
+                .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFFF5555))));
+    }
+}
+```
 
 ---
 

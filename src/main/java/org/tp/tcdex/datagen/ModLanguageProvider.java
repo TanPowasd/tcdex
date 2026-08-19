@@ -27,8 +27,14 @@ public class ModLanguageProvider extends LanguageProvider {
     }
 
     private void addEnUs() {
+        add("advancements.tcdex.first_enter.title", "Guardian Masters Their Own Destiny");
+        add("advancements.tcdex.first_enter.description", "Eyes up, Guardian. Your destiny begins now.");
+        add("advancements.tcdex.enter_end.title", "May the Light Be With You");
+        add("advancements.tcdex.enter_end.description", "The End awaits, Guardian. Light your way.");
+
         add("item.tcdex.my_love", "I love GFF");
         add("item.tcdex.light_essence", "Light Essence");
+        add("item.tcdex.guardian_emblem", "Guardian Emblem");
         add("itemGroup.tcdex_tab", "TCDEX");
 
         add("modifier.tcdex.eager_edge", "Eager Edge");
@@ -43,6 +49,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.element.prism", "Prism");
         add("modifier.tcdex.elemental.tooltip.element", "Element: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "Element: uncharged (assigned when kept in inventory)");
+
+        add("modifier.tcdex.five_forces", "Five Forces");
+        add("modifier.tcdex.five_forces.flavor", "Five paths, one will");
+        add("modifier.tcdex.five_forces.description", "Each attack randomly converts kinetic damage into one of the five elements (Solar/Arc/Void/Stasis/Strand, weights follow config; Prism excluded), applying that element's keyword state on hit. Works for melee and ranged. Exclusive with Elemental Charge and Prism Resonance.");
 
         add("modifier.tcdex.prism_resonance", "Prism Resonance");
         add("modifier.tcdex.prism_resonance.flavor", "All light bends to the prism");
@@ -68,6 +78,23 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.burning_fists", "Burning Fists");
         add("modifier.tcdex.burning_fists.flavor", "The worm's hunger burns in every blow");
         add("modifier.tcdex.burning_fists.description", "Melee kills ignite Burning Fists: +40% melee damage per stack (max 5), decaying over time. From level 2, grants bonus weapon damage (+2, +4 at level 3).");
+
+        add("modifier.tcdex.arc_amplifier", "Arc Amplifier");
+        add("modifier.tcdex.arc_amplifier.flavor", "Every strike summons the storm");
+        add("modifier.tcdex.arc_amplifier.description", "Requires Elemental Charge (Arc). Empowers Arc Jolt chain lightning: chain damage +50% and chain radius +1 block.");
+
+        add("modifier.tcdex.requires.elemental_arc", "Requires Elemental Charge (Arc)");
+
+        add("modifier.tcdex.burst_barrier", "Burst Barrier");
+        add("modifier.tcdex.burst_barrier.flavor", "When the wall falls, rage pours out");
+        add("modifier.tcdex.burst_barrier.description", "When your shield breaks, half of the overflow damage is blocked, and a shockwave deals 4 damage to enemies within 3 blocks (players excluded).");
+
+        add("modifier.tcdex.kinetic_tremors", "Kinetic Tremors");
+        add("modifier.tcdex.kinetic_tremors.flavor", "The earth remembers every blow");
+        add("modifier.tcdex.kinetic_tremors.description", "Kinetic weapons (no elemental modifier) only. Melee hits on the same target build stacks (max 5); at full stacks, an earthquake erupts beneath the target dealing 5 kinetic damage to all enemies within 3 blocks and knocking them back. Stacks decay after 4s without hitting the same target. Exclusive with Elemental Charge and Prism Resonance.");
+        add("modifier.tcdex.kinetic_siphon", "Kinetic Siphon");
+        add("modifier.tcdex.kinetic_siphon.flavor", "Every kill feeds the light");
+        add("modifier.tcdex.kinetic_siphon.description", "Kinetic weapons (no elemental modifier) only. Kills with this weapon restore 2 player shield points. Exclusive with Elemental Charge and Prism Resonance.");
 
         add("hud.tcdex.eager_cooldown", "Eager Cooldown");
         add("hud.tcdex.all_permitted.yun", "All Permitted");
@@ -103,8 +130,14 @@ public class ModLanguageProvider extends LanguageProvider {
     }
 
     private void addZhCn() {
+        add("advancements.tcdex.first_enter.title", "守护者掌握自己的命运");
+        add("advancements.tcdex.first_enter.description", "抬头，守护者。你的命运从此刻开始。");
+        add("advancements.tcdex.enter_end.title", "愿光能与你同在");
+        add("advancements.tcdex.enter_end.description", "末地在等待，守护者。以光引路。");
+
         add("item.tcdex.my_love", "此处应该表达些什么");
         add("item.tcdex.light_essence", "光之精华");
+        add("item.tcdex.guardian_emblem", "守护者徽记");
         add("itemGroup.tcdex_tab", "此处应该有些文字");
 
         add("modifier.tcdex.eager_edge", "急切刀锋");
@@ -119,6 +152,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.element.prism", "棱镜");
         add("modifier.tcdex.elemental.tooltip.element", "元素: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "元素: 未充能（收入物品栏后确定）");
+
+        add("modifier.tcdex.five_forces", "五项之力");
+        add("modifier.tcdex.five_forces.flavor", "五道力量，一意贯之");
+        add("modifier.tcdex.five_forces.description", "每次攻击将动能伤害随机转化为一种元素伤害（烈日/电弧/虚空/冰影/缚丝，权重遵循配置，棱镜除外），命中同时施加对应元素状态触发关键词。近战与远程均生效。与元素充能、棱镜共鸣互斥。");
 
         add("modifier.tcdex.prism_resonance", "棱镜共鸣");
         add("modifier.tcdex.prism_resonance.flavor", "万光归棱");
@@ -144,6 +181,23 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.burning_fists", "燃烧之拳");
         add("modifier.tcdex.burning_fists.flavor", "虫神的饥渴，燃烧于每一拳");
         add("modifier.tcdex.burning_fists.description", "近战击杀点燃燃烧之拳：每层近战伤害 +40%（最多 5 层），加成随时间衰减；等级 2 起提供额外武器攻击力（+2，等级 3 +4）。");
+
+        add("modifier.tcdex.arc_amplifier", "电弧增幅");
+        add("modifier.tcdex.arc_amplifier.flavor", "每一击都召来风暴");
+        add("modifier.tcdex.arc_amplifier.description", "需要元素充能（电弧）。强化电弧 Jolt 连锁闪电：连锁伤害 +50%，连锁半径 +1 格。");
+
+        add("modifier.tcdex.requires.elemental_arc", "需要元素充能（电弧）");
+
+        add("modifier.tcdex.burst_barrier", "爆裂屏障");
+        add("modifier.tcdex.burst_barrier.flavor", "当防线破碎，愤怒倾泻而出");
+        add("modifier.tcdex.burst_barrier.description", "护盾被打穿时：溢出伤害减半（格挡 50%），同时释放冲击波，对 3 格内敌人造成 4 点伤害（不含玩家）。");
+
+        add("modifier.tcdex.kinetic_tremors", "动能震颤");
+        add("modifier.tcdex.kinetic_tremors.flavor", "大地记得每一击");
+        add("modifier.tcdex.kinetic_tremors.description", "仅动能武器（无元素词条）可用。近战连续命中同一目标叠层（最多 5 层），满层时目标脚下爆发地震：3 格内敌人（不含玩家）受到 5 点动能伤害并击退。4 秒未继续命中当前目标则清层。与元素充能、棱镜共鸣互斥。");
+        add("modifier.tcdex.kinetic_siphon", "动能虹吸");
+        add("modifier.tcdex.kinetic_siphon.flavor", "每一次击杀都滋养着光");
+        add("modifier.tcdex.kinetic_siphon.description", "仅动能武器（无元素词条）可用。本武器击杀生物时回复 2 点玩家护盾。与元素充能、棱镜共鸣互斥。");
 
         add("hud.tcdex.eager_cooldown", "急切冷却");
         add("hud.tcdex.all_permitted.yun", "万事皆允");

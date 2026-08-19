@@ -1,0 +1,23 @@
+{
+  "display": {
+    "icon": {
+      "item": "tcdex:guardian_emblem"
+    },
+    "title": {
+      "translate": "advancements.tcdex.first_enter.title"
+    },
+    "description": {
+      "translate": "advancements.tcdex.first_enter.description"
+    },
+    "background": "minecraft:textures/gui/advancements/backgrounds/adventure.png",
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "criteria": {
+    "enter_world": {
+      "trigger": "minecraft:tick"
+    }
+  }
+}

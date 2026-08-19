@@ -21,6 +21,7 @@ public class ModCreativeModeTabs {
                     .displayItems((pParameters, pOutput) -> {
                         // my_love 隐藏：不出现在创造物品栏（JEI 见 TcdexJeiPlugin），仅可通过指令 /give 获得
                         pOutput.accept(ModItems.LIGHT_ESSENCE.get());
+                        pOutput.accept(ModItems.GUARDIAN_EMBLEM.get());
 
 
                     }).build());

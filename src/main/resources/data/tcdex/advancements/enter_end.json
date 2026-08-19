@@ -1,0 +1,26 @@
+{
+  "display": {
+    "icon": {
+      "item": "tcdex:guardian_emblem"
+    },
+    "title": {
+      "translate": "advancements.tcdex.enter_end.title"
+    },
+    "description": {
+      "translate": "advancements.tcdex.enter_end.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true,
+    "hidden": false
+  },
+  "parent": "tcdex:first_enter",
+  "criteria": {
+    "enter_end": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": {
+        "to": "minecraft:the_end"
+      }
+    }
+  }
+}

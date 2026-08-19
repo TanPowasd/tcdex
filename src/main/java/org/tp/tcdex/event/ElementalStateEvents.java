@@ -13,6 +13,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
@@ -27,8 +29,14 @@ import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.shield.PrismShieldConfig;
+import slimeknights.tconstruct.library.modifiers.ModifierEntry;
+import slimeknights.tconstruct.library.tools.item.IModifiable;
+import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
+import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -39,7 +47,12 @@ import java.util.Locale;
  *   <li>冰影 STASIS：目标冻结中（层数满 100）受击 → 伤害 +50%（Shatter）</li>
  *   <li>虚空 VOID：目标受击 → Volatile 爆炸（10% 最大生命，AOE，吃元素抗性），目标自身吃一半</li>
  *   <li>电弧 ARC：目标受击 → Jolt 连锁闪电（2 格内最多 2 个目标，各 3.0 伤害）</li>
+ *   <li>棱镜 PRISM：目标受击 → Refract 折射（本击 25% 溅射周围）</li>
  * </ul>
+ *
+ * <p>关键词结算数值可通过 {@link TcdexHooks#ELEMENTAL_KEYWORD} 由工具词条链式调整
+ * （倍率/伤害/半径），派发对象 = 事件中持有匠魂工具的玩家
+ * （攻击者为玩家用攻击者的武器；Sever 反向结算用被攻击玩家的武器）。</p>
  */
 @Mod.EventBusSubscriber(modid = Tcdex.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ElementalStateEvents {
@@ -122,40 +135,47 @@ public class ElementalStateEvents {
 
         IElementalEntity targetData = IElementalEntity.of(target);
 
-        // 缚丝 Sever：攻击者带缚丝标记 → 造成伤害 -40%
+        // 缚丝 Sever：攻击者带缚丝标记 → 造成伤害 -40%（倍率可被词条调整；
+        // 反向结算：攻击者是怪物时用被攻击玩家的武器增强防御）
         Entity sourceEntity = event.getSource().getEntity();
         if (sourceEntity instanceof LivingEntity attacker) {
             if (IElementalEntity.of(attacker).getElementStacks(ElementType.STRAND) > 0) {
-                event.setAmount(event.getAmount() * SEVER_DAMAGE_MULTIPLIER);
+                float multiplier = dispatchMultiplier(findEventTool(sourceEntity, target), ElementType.STRAND, SEVER_DAMAGE_MULTIPLIER);
+                event.setAmount(event.getAmount() * multiplier);
                 debugChat(sourceEntity, String.format(Locale.ROOT,
                         "[元素调试] Sever: %s 攻击带缚丝标记, 伤害 x%.2f",
-                        target.getDisplayName().getString(), SEVER_DAMAGE_MULTIPLIER));
+                        target.getDisplayName().getString(), multiplier));
             }
         }
 
         // 冰影 Shatter：冻结中（层数满 100）受击 +50%
         if (targetData.getElementStacks(ElementType.STASIS) >= 100) {
-            event.setAmount(event.getAmount() * SHATTER_MULTIPLIER);
+            float multiplier = dispatchMultiplier(findEventTool(sourceEntity, target), ElementType.STASIS, SHATTER_MULTIPLIER);
+            event.setAmount(event.getAmount() * multiplier);
             debugChat(sourceEntity, String.format(Locale.ROOT,
                     "[元素调试] Shatter: %s 冻结中受击, 伤害 x%.2f",
-                    target.getDisplayName().getString(), SHATTER_MULTIPLIER));
+                    target.getDisplayName().getString(), multiplier));
         }
 
         // 虚空 Weaken：带虚空标记的目标受到的伤害 +15%（标记被 Volatile 消耗前生效）
         if (targetData.getElementStacks(ElementType.VOID) > 0) {
-            event.setAmount(event.getAmount() * WEAKEN_MULTIPLIER);
+            float multiplier = dispatchMultiplier(findEventTool(sourceEntity, target), ElementType.VOID, WEAKEN_MULTIPLIER);
+            event.setAmount(event.getAmount() * multiplier);
             debugChat(sourceEntity, String.format(Locale.ROOT,
                     "[元素调试] Weaken: %s 带虚空标记, 伤害 x%.2f",
-                    target.getDisplayName().getString(), WEAKEN_MULTIPLIER));
+                    target.getDisplayName().getString(), multiplier));
         }
 
         // 虚空 Volatile：受击 → 爆炸（目标自身吃一半，周围吃全额）
         if (targetData.getElementStacks(ElementType.VOID) > 0) {
             targetData.clearElementState(ElementType.VOID);
+            ToolStack tool = findEventTool(sourceEntity, target);
             float resistance = ElementManager.getResistance(target, ElementType.VOID);
-            float explosion = target.getMaxHealth() * VOLATILE_HEALTH_PERCENT * resistance;
+            float percent = dispatchDamage(tool, ElementType.VOID, VOLATILE_HEALTH_PERCENT);
+            float radius = dispatchRadius(tool, ElementType.VOID, VOLATILE_RADIUS);
+            float explosion = target.getMaxHealth() * percent * resistance;
             event.setAmount(event.getAmount() + explosion * 0.5f);
-            explodeAround(target, explosion, VOLATILE_RADIUS);
+            explodeAround(target, explosion, radius);
             debugChat(sourceEntity, String.format(Locale.ROOT,
                     "[元素调试] Volatile: %s 护甲引爆! 爆炸 %.2f (本体 +%.2f)",
                     target.getDisplayName().getString(), explosion, explosion * 0.5f));
@@ -164,23 +184,99 @@ public class ElementalStateEvents {
         // 电弧 Jolt：受击 → 连锁闪电
         if (targetData.getElementStacks(ElementType.ARC) > 0) {
             targetData.clearElementState(ElementType.ARC);
-            joltChain(target);
+            ToolStack tool = findEventTool(sourceEntity, target);
+            float damage = dispatchDamage(tool, ElementType.ARC, JOLT_DAMAGE);
+            float radius = dispatchRadius(tool, ElementType.ARC, JOLT_RADIUS);
+            joltChain(target, damage, radius);
             debugChat(sourceEntity, String.format(Locale.ROOT,
-                    "[元素调试] Jolt: %s 连锁闪电!",
-                    target.getDisplayName().getString()));
+                    "[元素调试] Jolt: %s 连锁闪电! (%.1f 伤害, %.1f 格)",
+                    target.getDisplayName().getString(), damage, radius));
         }
 
-        // 棱镜 Refract：受击 → 本击 25% 伤害折射溅射周围（不含玩家），清除标记
+        // 棱镜 Refract：受击 → 本击部分伤害折射溅射周围（不含玩家），清除标记
         if (targetData.getElementStacks(ElementType.PRISM) > 0) {
             targetData.clearElementState(ElementType.PRISM);
-            float splash = event.getAmount() * REFRACT_SPLASH_RATIO;
+            ToolStack tool = findEventTool(sourceEntity, target);
+            float ratio = dispatchDamage(tool, ElementType.PRISM, REFRACT_SPLASH_RATIO);
+            float radius = dispatchRadius(tool, ElementType.PRISM, REFRACT_RADIUS);
+            float splash = event.getAmount() * ratio;
             if (splash > 0.5f) {
-                refractAround(target, splash);
+                refractAround(target, splash, radius);
             }
             debugChat(sourceEntity, String.format(Locale.ROOT,
                     "[元素调试] Refract: %s 棱镜折射! 溅射 %.2f",
                     target.getDisplayName().getString(), splash));
         }
+    }
+
+    // ===== ELEMENTAL_KEYWORD hook 派发 =====
+
+    /**
+     * 定位事件中玩家持有的匠魂工具（用于关键词 hook 派发）：
+     * 攻击者为玩家（或玩家弹射物）→ 攻击者的武器；否则被攻击目标为玩家 → 其武器（Sever 反向结算）；
+     * 都不是（怪物互殴等）→ null（不派发，用默认值）。
+     */
+    @Nullable
+    private static ToolStack findEventTool(Entity sourceEntity, LivingEntity target) {
+        Player player = null;
+        if (sourceEntity instanceof Player p) {
+            player = p;
+        } else if (sourceEntity instanceof Projectile projectile && projectile.getOwner() instanceof Player p) {
+            player = p;
+        } else if (target instanceof Player p) {
+            player = p;
+        }
+        return player == null ? null : heldTool(player);
+    }
+
+    /** 玩家主手/副手第一个可用匠魂工具（主手优先） */
+    @Nullable
+    private static ToolStack heldTool(Player player) {
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (!stack.isEmpty() && stack.getItem() instanceof IModifiable) {
+                ToolStack tool = ToolStack.from(stack);
+                if (!tool.isBroken()) {
+                    return tool;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** 关键词倍率派发：工具上所有词条链式调整 */
+    private static float dispatchMultiplier(@Nullable ToolStack tool, ElementType keyword, float value) {
+        if (tool == null) {
+            return value;
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            value = entry.getHook(TcdexHooks.ELEMENTAL_KEYWORD)
+                    .modifyKeywordMultiplier(tool, entry, keyword, value);
+        }
+        return value;
+    }
+
+    /** 关键词伤害派发：工具上所有词条链式调整 */
+    private static float dispatchDamage(@Nullable ToolStack tool, ElementType keyword, float value) {
+        if (tool == null) {
+            return value;
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            value = entry.getHook(TcdexHooks.ELEMENTAL_KEYWORD)
+                    .modifyKeywordDamage(tool, entry, keyword, value);
+        }
+        return value;
+    }
+
+    /** 关键词半径派发：工具上所有词条链式调整 */
+    private static float dispatchRadius(@Nullable ToolStack tool, ElementType keyword, float value) {
+        if (tool == null) {
+            return value;
+        }
+        for (ModifierEntry entry : tool.getModifierList()) {
+            value = entry.getHook(TcdexHooks.ELEMENTAL_KEYWORD)
+                    .modifyKeywordRadius(tool, entry, keyword, value);
+        }
+        return value;
     }
 
     /**
@@ -302,16 +398,16 @@ public class ElementalStateEvents {
         }
     }
 
-    /** Jolt 连锁闪电：2 格内最多 2 个其他实体受到电弧伤害 + 致盲（Blind，不含玩家） */
-    private static void joltChain(LivingEntity center) {
+    /** Jolt 连锁闪电：半径内最多 2 个其他实体受到电弧伤害 + 致盲（Blind，不含玩家） */
+    private static void joltChain(LivingEntity center, float damage, float radius) {
         Level level = center.level();
         DamageSource source = center.damageSources().indirectMagic(center, null);
         int count = 0;
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, center.getBoundingBox().inflate(JOLT_RADIUS), e -> e != center && e.isAlive() && !(e instanceof Player))) {
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, center.getBoundingBox().inflate(radius), e -> e != center && e.isAlive() && !(e instanceof Player))) {
             if (count >= JOLT_TARGETS) {
                 break;
             }
-            entity.hurt(source, JOLT_DAMAGE);
+            entity.hurt(source, damage);
             // Blind：连锁命中目标致盲 + 丢失攻击目标
             entity.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, BLIND_DURATION, 0, false, true));
             if (entity instanceof Mob mob) {
@@ -325,10 +421,10 @@ public class ElementalStateEvents {
     }
 
     /** 棱镜折射溅射：对周围生物造成本击部分伤害（不含玩家，命运2 语义） */
-    private static void refractAround(LivingEntity center, float damage) {
+    private static void refractAround(LivingEntity center, float damage, float radius) {
         Level level = center.level();
         DamageSource source = center.damageSources().indirectMagic(center, null);
-        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, center.getBoundingBox().inflate(REFRACT_RADIUS), e -> e != center && e.isAlive() && !(e instanceof Player))) {
+        for (LivingEntity entity : level.getEntitiesOfClass(LivingEntity.class, center.getBoundingBox().inflate(radius), e -> e != center && e.isAlive() && !(e instanceof Player))) {
             entity.hurt(source, damage);
         }
         if (level instanceof ServerLevel serverLevel) {

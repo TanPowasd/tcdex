@@ -32,10 +32,15 @@ import org.tp.tcdex.compat.TcdexCompat;
 import org.tp.tcdex.effect.TcdexEffects;
 import org.tp.tcdex.modifier.ModifierExclusivity;
 import org.tp.tcdex.modifier.elemental.ElementalModifier;
+import org.tp.tcdex.modifier.elemental.FiveForcesModifier;
 import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
+import org.tp.tcdex.modifier.melee.ArcAmplifierModifier;
 import org.tp.tcdex.modifier.melee.BurningFistsModifier;
+import org.tp.tcdex.modifier.melee.BurstBarrierModifier;
 import org.tp.tcdex.modifier.melee.CombatEchoModifier;
 import org.tp.tcdex.modifier.melee.EagerEdgeModifier;
+import org.tp.tcdex.modifier.melee.KineticSiphonModifier;
+import org.tp.tcdex.modifier.melee.KineticTremorsModifier;
 import org.tp.tcdex.modifier.melee.SynthoModifier;
 import org.tp.tcdex.modifier.special.AllPermittedModifier;
 import org.tp.tcdex.network.PacketHandler;
@@ -68,8 +73,13 @@ public class Tcdex {
         modEventBus.addListener(CombatEchoModifier::registerModifier);
         modEventBus.addListener(ElementalModifier::registerModifier);
         modEventBus.addListener(PrismResonanceModifier::registerModifier);
+        modEventBus.addListener(FiveForcesModifier::registerModifier);
         modEventBus.addListener(SynthoModifier::registerModifier);
         modEventBus.addListener(BurningFistsModifier::registerModifier);
+        modEventBus.addListener(ArcAmplifierModifier::registerModifier);
+        modEventBus.addListener(BurstBarrierModifier::registerModifier);
+        modEventBus.addListener(KineticTremorsModifier::registerModifier);
+        modEventBus.addListener(KineticSiphonModifier::registerModifier);
 
         // 注册自定义药水效果（吞噬等）
         TcdexEffects.register(modEventBus);

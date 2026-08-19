@@ -44,6 +44,15 @@ public final class ModifierExclusivity {
     public static void registerAll() {
         // 元素充能 ↔ 棱镜共鸣：棱镜伤害为专属来源（棱镜共鸣），与元素充能的随机元素不可叠加
         registerExclusive(new ModifierId(Tcdex.MODID, "elemental"), new ModifierId(Tcdex.MODID, "prism_resonance"));
+        // 动能词条 ↔ 元素体系：动能震颤/动能虹吸为动能武器（无元素词条）专属，与元素充能/棱镜共鸣互斥
+        registerExclusive(id("kinetic_tremors"), id("elemental"));
+        registerExclusive(id("kinetic_tremors"), id("prism_resonance"));
+        registerExclusive(id("kinetic_siphon"), id("elemental"));
+        registerExclusive(id("kinetic_siphon"), id("prism_resonance"));
+        // 五项之力 ↔ 元素体系：每次攻击随机元素的伤害类型决定权唯一，与元素充能/棱镜共鸣互斥
+        // （与动能词条不互斥——可混搭"随机元素攻击 + 动能特性"的 hybrid build）
+        registerExclusive(id("five_forces"), id("elemental"));
+        registerExclusive(id("five_forces"), id("prism_resonance"));
     }
 
     /** 注册一对互斥词条（自动双向登记；重复注册幂等） */

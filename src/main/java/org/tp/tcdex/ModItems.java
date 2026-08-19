@@ -15,6 +15,10 @@ public class ModItems {
     public static final RegistryObject<Item> LIGHT_ESSENCE=
             ITEMS.register("light_essence",()->new Item(new Item.Properties()));
 
+    /** 守护者徽记：命运2 风格纪念品（成就「守护者掌握自己的命运」图标） */
+    public static final RegistryObject<Item> GUARDIAN_EMBLEM=
+            ITEMS.register("guardian_emblem",()->new Item(new Item.Properties()));
+
 
 
 

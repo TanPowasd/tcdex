@@ -2,6 +2,7 @@ package org.tp.tcdex.shield;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
@@ -14,12 +15,15 @@ import net.minecraftforge.network.PacketDistributor;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.network.PacketHandler;
 import org.tp.tcdex.network.PlayerStateSyncPacket;
+import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -57,15 +61,44 @@ public class PlayerShieldEvents {
         if (event.getEntity() instanceof Player target) {
             PlayerShieldManager.markHurt(target, now);
             if (PlayerShieldManager.isEnabled() && PlayerShieldManager.getShield(target) > 0) {
+                float shieldBefore = PlayerShieldManager.getShield(target);
                 float overflow = PlayerShieldManager.absorbDamage(target, event.getAmount());
+                // 护盾破碎（从有到无）：派发 PLAYER_SHIELD_BREAK hook（词条可减免溢出伤害/触发破碎联动）
+                if (shieldBefore > 0 && PlayerShieldManager.getShield(target) <= 0) {
+                    overflow = dispatchShieldBreak(target, event.getSource(), overflow);
+                }
                 if (overflow <= 0) {
-                    event.setCanceled(true); // 护盾全吸收
+                    event.setCanceled(true); // 护盾全吸收（含破碎 hook 完全格挡溢出）
                 } else {
                     event.setAmount(overflow); // 溢出部分继续结算到生命
                 }
                 DIRTY.add(target.getUUID());
             }
         }
+    }
+
+    // ===== PLAYER_SHIELD_BREAK hook 派发 =====
+
+    /**
+     * 玩家护盾破碎派发：先链式调整溢出伤害（所有词条），再链式触发破碎回调（所有词条）。
+     *
+     * @return 调整后的溢出伤害（&lt;=0 = 本击被完全格挡，事件取消）
+     */
+    private static float dispatchShieldBreak(Player player, DamageSource source, float overflow) {
+        List<ToolStack> tools = PlayerShieldManager.getModifiableTools(player);
+        for (ToolStack tool : tools) {
+            for (ModifierEntry entry : tool.getModifierList()) {
+                overflow = entry.getHook(TcdexHooks.PLAYER_SHIELD_BREAK)
+                        .modifyBreakOverflow(tool, entry, player, source, overflow);
+            }
+        }
+        for (ToolStack tool : tools) {
+            for (ModifierEntry entry : tool.getModifierList()) {
+                entry.getHook(TcdexHooks.PLAYER_SHIELD_BREAK)
+                        .onShieldBreak(tool, entry, player, source, overflow);
+            }
+        }
+        return overflow;
     }
 
     @SubscribeEvent

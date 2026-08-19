@@ -24,8 +24,11 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import org.tp.tcdex.modifier.hook.ElementalKeywordHook;
 import org.tp.tcdex.modifier.hook.ElementalStateApplyHook;
 import org.tp.tcdex.modifier.hook.KillingHook;
+import org.tp.tcdex.modifier.hook.KineticAttackModifierHook;
+import org.tp.tcdex.modifier.hook.PlayerShieldBreakHook;
 import org.tp.tcdex.modifier.hook.PlayerShieldHook;
 import org.tp.tcdex.modifier.hook.ShieldBreakHook;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
@@ -154,7 +157,8 @@ public abstract class TcdexBaseModifier extends Modifier implements
         BlockTransformModifierHook, CapacityBarHook, PlantHarvestModifierHook, ShearsModifierHook,
         SlingAngleModifierHook, SlingForceModifierHook, SlingLaunchModifierHook,
         // TCDEX 自定义
-        KillingHook, ShieldBreakHook, PlayerShieldHook, ElementalStateApplyHook {
+        KillingHook, ShieldBreakHook, PlayerShieldHook, PlayerShieldBreakHook, ElementalStateApplyHook,
+        ElementalKeywordHook, KineticAttackModifierHook {
 
     @Override
     protected void registerHooks(ModuleHookMap.Builder hookBuilder) {
@@ -189,7 +193,8 @@ public abstract class TcdexBaseModifier extends Modifier implements
                 ModifierHooks.BLOCK_TRANSFORM, ModifierHooks.CAPACITY_BAR, ModifierHooks.PLANT_HARVEST, ModifierHooks.SHEAR_ENTITY,
                 // TCDEX 自定义
                 TcdexHooks.KILLING_HOOK, TcdexHooks.SHIELD_BREAK, TcdexHooks.PLAYER_SHIELD,
-                TcdexHooks.ELEMENTAL_STATE_APPLY);
+                TcdexHooks.PLAYER_SHIELD_BREAK, TcdexHooks.ELEMENTAL_STATE_APPLY, TcdexHooks.ELEMENTAL_KEYWORD,
+                TcdexHooks.KINETIC_ATTACK);
     }
 
     // ========================================================================
@@ -728,6 +733,16 @@ public abstract class TcdexBaseModifier extends Modifier implements
     }
 
     @Override
+    public float modifyBreakOverflow(IToolStackView tool, ModifierEntry modifier, Player player, net.minecraft.world.damagesource.DamageSource source, float overflow) {
+        return modifierModifyBreakOverflow(tool, modifier, player, source, overflow);
+    }
+
+    @Override
+    public void onShieldBreak(IToolStackView tool, ModifierEntry modifier, Player player, net.minecraft.world.damagesource.DamageSource source, float overflow) {
+        modifierOnShieldBreak(tool, modifier, player, source, overflow);
+    }
+
+    @Override
     public float modifyStateStacks(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, float stacks) {
         return modifierModifyStateStacks(tool, modifier, element, stacks);
     }
@@ -735,6 +750,31 @@ public abstract class TcdexBaseModifier extends Modifier implements
     @Override
     public int modifyStateDuration(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, int duration) {
         return modifierModifyStateDuration(tool, modifier, element, duration);
+    }
+
+    @Override
+    public float modifyKeywordMultiplier(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float multiplier) {
+        return modifierModifyKeywordMultiplier(tool, modifier, keyword, multiplier);
+    }
+
+    @Override
+    public float modifyKeywordDamage(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float damage) {
+        return modifierModifyKeywordDamage(tool, modifier, keyword, damage);
+    }
+
+    @Override
+    public float modifyKeywordRadius(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float radius) {
+        return modifierModifyKeywordRadius(tool, modifier, keyword, radius);
+    }
+
+    @Override
+    public float modifyKineticDamage(IToolStackView tool, ModifierEntry modifier, LivingEntity target, float amount) {
+        return modifierModifyKineticDamage(tool, modifier, target, amount);
+    }
+
+    @Override
+    public float modifyKineticShieldEfficiency(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType shieldElement, float efficiency) {
+        return modifierModifyKineticShieldEfficiency(tool, modifier, shieldElement, efficiency);
     }
 
     // ========================================================================
@@ -1099,11 +1139,38 @@ public abstract class TcdexBaseModifier extends Modifier implements
         return rate;
     }
 
+    protected float modifierModifyBreakOverflow(IToolStackView tool, ModifierEntry modifier, Player player, net.minecraft.world.damagesource.DamageSource source, float overflow) {
+        return overflow;
+    }
+
+    protected void modifierOnShieldBreak(IToolStackView tool, ModifierEntry modifier, Player player, net.minecraft.world.damagesource.DamageSource source, float overflow) {
+    }
+
     protected float modifierModifyStateStacks(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, float stacks) {
         return stacks;
     }
 
     protected int modifierModifyStateDuration(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, int duration) {
         return duration;
+    }
+
+    protected float modifierModifyKeywordMultiplier(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float multiplier) {
+        return multiplier;
+    }
+
+    protected float modifierModifyKeywordDamage(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float damage) {
+        return damage;
+    }
+
+    protected float modifierModifyKeywordRadius(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float radius) {
+        return radius;
+    }
+
+    protected float modifierModifyKineticDamage(IToolStackView tool, ModifierEntry modifier, LivingEntity target, float amount) {
+        return amount;
+    }
+
+    protected float modifierModifyKineticShieldEfficiency(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType shieldElement, float efficiency) {
+        return efficiency;
     }
 }

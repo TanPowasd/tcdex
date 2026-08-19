@@ -152,7 +152,7 @@ public final class PlayerShieldManager {
 
     /** 玩家护盾吸收量调整：遍历玩家全部匠魂装备/手持工具词条（链式） */
     private static float dispatchModifyAbsorbed(Player player, float damageAmount, float absorbed) {
-        for (ToolStack tool : playerModifiableTools(player)) {
+        for (ToolStack tool : getModifiableTools(player)) {
             for (ModifierEntry entry : tool.getModifierList()) {
                 absorbed = entry.getHook(TcdexHooks.PLAYER_SHIELD)
                         .modifyAbsorbed(tool, entry, player, damageAmount, absorbed);
@@ -163,7 +163,7 @@ public final class PlayerShieldManager {
 
     /** 玩家护盾回复速率调整：遍历玩家全部匠魂装备/手持工具词条（链式） */
     private static float dispatchModifyRegenRate(Player player, float rate) {
-        for (ToolStack tool : playerModifiableTools(player)) {
+        for (ToolStack tool : getModifiableTools(player)) {
             for (ModifierEntry entry : tool.getModifierList()) {
                 rate = entry.getHook(TcdexHooks.PLAYER_SHIELD)
                         .modifyRegenRate(tool, entry, player, rate);
@@ -173,7 +173,7 @@ public final class PlayerShieldManager {
     }
 
     /** 玩家全部匠魂装备/手持工具（护甲 4 槽 + 主手 + 副手，跳过非匠魂/损坏） */
-    private static List<ToolStack> playerModifiableTools(Player player) {
+    public static List<ToolStack> getModifiableTools(Player player) {
         List<ToolStack> tools = new ArrayList<>();
         for (ItemStack stack : player.getArmorSlots()) {
             addModifiableTool(tools, stack);
