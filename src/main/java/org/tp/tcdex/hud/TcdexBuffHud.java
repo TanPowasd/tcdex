@@ -43,6 +43,10 @@ public class TcdexBuffHud {
     private static int apCombo;
     /** 吞噬 buff 剩余 tick */
     private static int devourTicks;
+    /** 超越：光之能量 / 暗之能量 / 激活剩余 tick（玩家基础机制） */
+    private static float transLight;
+    private static float transDark;
+    private static int transActiveTicks;
     /** 玩家元素状态 */
     private static final Map<ElementType, ElementStatus> ELEMENT_STATES = new EnumMap<>(ElementType.class);
 
@@ -60,6 +64,7 @@ public class TcdexBuffHud {
     public static void syncAll(int eagerBuff, int eagerCooldown,
                                byte mode, float forbidden, int sinTicks, int combo,
                                int devour,
+                               float light, float dark, int transActive,
                                Map<ElementType, ElementStatus> elementStates) {
         eagerBuffTicks = eagerBuff;
         eagerCooldownTicks = eagerCooldown;
@@ -68,6 +73,9 @@ public class TcdexBuffHud {
         apSinTicks = sinTicks;
         apCombo = combo;
         devourTicks = devour;
+        transLight = light;
+        transDark = dark;
+        transActiveTicks = transActive;
         ELEMENT_STATES.clear();
         ELEMENT_STATES.putAll(elementStates);
     }
@@ -159,6 +167,22 @@ public class TcdexBuffHud {
         if (devourTicks > 0) {
             entries.add(new BuffEntry(Component.translatable("effect.tcdex.devour"),
                     0xFF9B59B6, secondsText(devourTicks)));
+        }
+
+        // ===== 超越（玩家基础机制，光暗双能量槽） =====
+        if (transActiveTicks > 0) {
+            // 激活中：金色爆发
+            entries.add(new BuffEntry(Component.translatable("hud.tcdex.transcendence"),
+                    0xFFE8C14C, secondsText(transActiveTicks)));
+        } else if (transLight >= 100.0f && transDark >= 100.0f) {
+            // 双满未激活：就绪提示
+            entries.add(new BuffEntry(Component.translatable("hud.tcdex.transcendence.ready"),
+                    0xFFFFFF40, ""));
+        } else if (transLight > 0 || transDark > 0) {
+            // 充能中：光/暗双槽（光=金色，暗=紫色）
+            entries.add(new BuffEntry(Component.translatable("hud.tcdex.transcendence.charge",
+                            (int) transLight, (int) transDark),
+                    0xFF9BD9FF, ""));
         }
 
         // ===== 玩家元素状态 =====

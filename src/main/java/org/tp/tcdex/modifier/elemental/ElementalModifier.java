@@ -147,13 +147,14 @@ public class ElementalModifier extends TcdexBaseModifier {
      * 命中结算（全元素关键词化）：只播放粒子并给目标叠加元素状态。
      * 灼烧 DoT / 冻结减速由 Mixin tick 结算，Volatile/Jolt/Shatter/Sever 由受击联动结算，
      * 伤害数值由伤害转化事件负责（动能 → 元素），modifier 本身不再施加任何即时效果。
-     * 近战路径派发 ELEMENTAL_STATE_APPLY hook（词条可调整层数/时长）；远程路径无工具上下文不派发。
+     * 近战/远程路径派发 ELEMENTAL_STATE_APPLY hook（词条可调整层数/时长，携带攻击者上下文）。
      *
      * @param tool    攻击工具（远程路径传 null）
+     * @param attacker 攻击者（远程为弹射物射出者，可能为 null）
      * @param element 本武器固化的元素
      * @param target  受击目标
      */
-    private void applyElement(IToolStackView tool, ElementType element, LivingEntity target) {
+    private void applyElement(IToolStackView tool, @javax.annotation.Nullable LivingEntity attacker, ElementType element, LivingEntity target) {
         if (target.level().isClientSide) {
             return;
         }
@@ -165,7 +166,8 @@ public class ElementalModifier extends TcdexBaseModifier {
                     15, 0.3, 0.3, 0.3, 0.1);
         }
 
-        // 元素状态施加（ELEMENTAL_STATE_APPLY hook 链式调整层数/时长）
+        // 元素状态施加（ELEMENTAL_STATE_APPLY hook 链式调整层数/时长；
+        // 超越激活时层数 ×2——玩家基础机制全局增强，见 TranscendenceManager）
         float stacks = element.getStacksPerHit();
         int duration = element.getStateDuration();
         if (tool != null) {
@@ -175,6 +177,9 @@ public class ElementalModifier extends TcdexBaseModifier {
                 duration = entry.getHook(TcdexHooks.ELEMENTAL_STATE_APPLY)
                         .modifyStateDuration(tool, entry, element, duration);
             }
+        }
+        if (attacker instanceof net.minecraft.world.entity.player.Player player) {
+            stacks = org.tp.tcdex.transcendence.TranscendenceManager.applyStateMultiplier(player, stacks);
         }
         if (stacks > 0 && duration > 0) {
             // 层数叠加，满 100 触发关键词（Ignite/冻结）；标记型元素（虚空/电弧/缚丝/棱镜）由受击联动结算
@@ -189,7 +194,7 @@ public class ElementalModifier extends TcdexBaseModifier {
         if (attacker == null || target == null) {
             return;
         }
-        applyElement(tool, getElement(tool), target);
+        applyElement(tool, attacker, getElement(tool), target);
     }
 
     @Override
@@ -199,7 +204,7 @@ public class ElementalModifier extends TcdexBaseModifier {
         if (attacker == null || target == null) {
             return false;
         }
-        applyElement(null, getElement(persistentData), target);
+        applyElement(null, attacker, getElement(persistentData), target);
         return false;
     }
 

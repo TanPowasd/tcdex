@@ -4,6 +4,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -13,11 +14,18 @@ import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.effect.TcdexEffects;
 import org.tp.tcdex.effect.WarBannerEffect;
+import org.tp.tcdex.modifier.ModifierHelper;
+import org.tp.tcdex.modifier.special.WarBannerModifier;
+import slimeknights.tconstruct.library.tools.item.IModifiable;
+import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+
+import java.util.List;
 
 /**
- * 战争旗帜效果联动（命运2 Banner of War，独立 buff 非词条）：
+ * 战争旗帜效果联动（命运2 Banner of War，词条驱动）：
  * <ul>
- *   <li><b>击杀扬旗</b>：玩家击杀任意敌人 → 施加/刷新战争旗帜效果（层数 +1，上限 4，时长 8 秒）</li>
+ *   <li><b>击杀扬旗</b>：<b>持有「战争旗帜」词条</b>的玩家击杀任意敌人 →
+ *       施加/刷新战争旗帜效果（层数 +1，上限 4，时长 8 秒）；无词条者击杀不扬旗</li>
  *   <li><b>盟友增伤</b>：玩家攻击生物时，按附近 8 格内（含自己）最高旗帜层数，每层伤害 +8%</li>
  *   <li><b>旗帜治疗</b>：持旗玩家每 1 秒治疗附近玩家 0.5 × 层数</li>
  * </ul>
@@ -35,11 +43,28 @@ public class WarBannerEvents {
         if (!(event.getSource().getEntity() instanceof Player killer)) {
             return;
         }
+        // 只有战争旗帜词条持有者击杀才扬旗（主手/副手工具上存在 war_banner 词条）
+        if (!hasWarBannerModifier(killer)) {
+            return;
+        }
         // 层数 = amplifier + 1（上限 4 层）；每次击杀刷新 8 秒时长
         MobEffectInstance current = killer.getEffect(TcdexEffects.WAR_BANNER.get());
         int amplifier = current != null ? Math.min(WarBannerEffect.MAX_AMPLIFIER, current.getAmplifier() + 1) : 0;
         killer.addEffect(new MobEffectInstance(TcdexEffects.WAR_BANNER.get(),
                 WarBannerEffect.DURATION, amplifier, false, true));
+    }
+
+    /** 玩家主手/副手工具上是否持有「战争旗帜」词条 */
+    private static boolean hasWarBannerModifier(Player player) {
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (!stack.isEmpty() && stack.getItem() instanceof IModifiable) {
+                ToolStack tool = ToolStack.from(stack);
+                if (!tool.isBroken() && ModifierHelper.hasModifier(tool, WarBannerModifier.class)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // ===== 盟友增伤（最终伤害，覆盖近战/远程、匠魂/原版武器） =====

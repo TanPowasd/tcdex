@@ -137,6 +137,12 @@ public class PlayerShieldEvents {
         if (!IElementalEntity.of(player).getAllElementStates().isEmpty()) {
             return true;
         }
+        // 超越（玩家基础机制）：能量未空或激活中
+        if (org.tp.tcdex.transcendence.TranscendenceManager.getLightEnergy(player) > 0
+                || org.tp.tcdex.transcendence.TranscendenceManager.getDarkEnergy(player) > 0
+                || org.tp.tcdex.transcendence.TranscendenceManager.getActiveTicks(player, now) > 0) {
+            return true;
+        }
         ItemStack mainHand = player.getMainHandItem();
         if (!mainHand.isEmpty() && mainHand.getItem() instanceof IModifiable) {
             slimeknights.tconstruct.library.tools.nbt.ModDataNBT toolData = ToolStack.from(mainHand).getPersistentData();
@@ -191,6 +197,9 @@ public class PlayerShieldEvents {
                         eagerBuff, eagerCooldown,
                         apMode, apForbidden, apSin, apCombo,
                         devourTicks,
+                        org.tp.tcdex.transcendence.TranscendenceManager.getLightEnergy(player),
+                        org.tp.tcdex.transcendence.TranscendenceManager.getDarkEnergy(player),
+                        org.tp.tcdex.transcendence.TranscendenceManager.getActiveTicks(player, now),
                         IElementalEntity.of(player).getAllElementStates()));
     }
 }

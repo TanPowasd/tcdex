@@ -64,6 +64,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add("effect.tcdex.war_banner", "War Banner");
         add("effect.tcdex.amplified", "Amplified");
 
+        add("modifier.tcdex.war_banner", "War Banner");
+        add("modifier.tcdex.war_banner.flavor", "Raise the banner. Rally the Light.");
+        add("modifier.tcdex.war_banner.description", "Kills raise the War Banner: each kill adds a stack (max 4, 8s refreshed on kill). While the banner stands, nearby players (8 blocks, including yourself) deal +8% damage per stack and heal 0.5 per second per stack.");
+
         add("modifier.tcdex.all_permitted", "All Permitted");
         add("modifier.tcdex.all_permitted.flavor", "Nothing is true, everything is permitted");
         add("modifier.tcdex.all_permitted.description", "Right-click to switch between [Xu] and [Yun] forms. Xu: steal target armor and attack on hit (5 stacks/5s), accumulate Forbidden. Yun: consume Forbidden exponentially (1/2/4/8/16) for true damage ignoring armor, combo boosts damage. At 100 Forbidden, auto-overload AOE (4 blocks), then enter Sin (-50% damage); atone with 5 Xu-form hits.");
@@ -97,6 +101,11 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.kinetic_siphon.description", "Kinetic weapons (no elemental modifier) only. Kills with this weapon restore 2 player shield points. Exclusive with Elemental Charge and Prism Resonance.");
 
         add("hud.tcdex.eager_cooldown", "Eager Cooldown");
+        add("hud.tcdex.transcendence", "Transcendence");
+        add("hud.tcdex.transcendence.charge", "Light %d / Dark %d");
+        add("hud.tcdex.transcendence.ready", "Transcendence Ready");
+        add("key.tcdex.transcendence", "Activate Transcendence");
+        add("key.categories.tcdex", "TCDEX");
         add("hud.tcdex.all_permitted.yun", "All Permitted");
         add("hud.tcdex.all_permitted.xu", "Nothing is True");
         add("hud.tcdex.all_permitted.sin", "Sin");
@@ -167,6 +176,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add("effect.tcdex.war_banner", "战争旗帜");
         add("effect.tcdex.amplified", "增幅");
 
+        add("modifier.tcdex.war_banner", "战争旗帜");
+        add("modifier.tcdex.war_banner.flavor", "举起旗帜，集结光能");
+        add("modifier.tcdex.war_banner.description", "击杀扬旗：持有本词条击杀任意敌人扬起战争旗帜（叠层上限 4，8 秒无击杀落地）。旗帜期间 8 格内玩家（含自己）每层伤害 +8%、每秒治疗 0.5。");
+
         add("modifier.tcdex.all_permitted", "万般皆允");
         add("modifier.tcdex.all_permitted.flavor", "万物皆虚，万事皆允");
         add("modifier.tcdex.all_permitted.description", "右键切换【虚/允】双形态。虚形态：命中偷取目标护甲与攻击（5层/5秒），积累禁忌；允形态：等比消耗禁忌（1/2/4/8/16）造成无视护甲的真伤，连击提升伤害。禁忌满100自动超载AOE（4格），事后陷入罪业（伤害减半），虚形态命中5次赎罪解除。");
@@ -200,6 +213,11 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.kinetic_siphon.description", "仅动能武器（无元素词条）可用。本武器击杀生物时回复 2 点玩家护盾。与元素充能、棱镜共鸣互斥。");
 
         add("hud.tcdex.eager_cooldown", "急切冷却");
+        add("hud.tcdex.transcendence", "超越");
+        add("hud.tcdex.transcendence.charge", "光 %d / 暗 %d");
+        add("hud.tcdex.transcendence.ready", "超越就绪");
+        add("key.tcdex.transcendence", "激活超越");
+        add("key.categories.tcdex", "TCDEX");
         add("hud.tcdex.all_permitted.yun", "万事皆允");
         add("hud.tcdex.all_permitted.xu", "万物皆虚");
         add("hud.tcdex.all_permitted.sin", "罪业");

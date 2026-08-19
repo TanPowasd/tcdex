@@ -54,10 +54,11 @@ public class FiveForcesModifier extends TcdexBaseModifier {
      * 与 {@link ElementalModifier} 的命中施加逻辑同一套体系。</p>
      *
      * @param tool    攻击工具（转化处实例；null 时跳过 hook 派发）
+     * @param attacker 攻击者（玩家）
      * @param target  受击目标
      * @param element 本次攻击 roll 到的元素
      */
-    public static void applyHitState(ToolStack tool, LivingEntity target, ElementType element) {
+    public static void applyHitState(ToolStack tool, LivingEntity attacker, LivingEntity target, ElementType element) {
         if (target.level().isClientSide) {
             return;
         }
@@ -67,7 +68,8 @@ public class FiveForcesModifier extends TcdexBaseModifier {
                     target.getX(), target.getY() + 1.0, target.getZ(),
                     15, 0.3, 0.3, 0.3, 0.1);
         }
-        // 元素状态施加（ELEMENTAL_STATE_APPLY hook 链式调整层数/时长）
+        // 元素状态施加（ELEMENTAL_STATE_APPLY hook 链式调整层数/时长；
+        // 超越激活时层数 ×2——玩家基础机制全局增强，见 TranscendenceManager）
         float stacks = element.getStacksPerHit();
         int duration = element.getStateDuration();
         if (tool != null) {
@@ -78,6 +80,7 @@ public class FiveForcesModifier extends TcdexBaseModifier {
                         .modifyStateDuration(tool, entry, element, duration);
             }
         }
+        stacks = org.tp.tcdex.transcendence.TranscendenceManager.applyStateMultiplier(attacker, stacks);
         if (stacks > 0 && duration > 0) {
             IElementalEntity.of(target).addElementState(element, stacks, duration);
         }

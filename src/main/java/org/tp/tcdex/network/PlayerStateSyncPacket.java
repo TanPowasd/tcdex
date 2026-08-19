@@ -13,7 +13,7 @@ import java.util.function.Supplier;
 
 /**
  * 玩家状态同步包（服务端 → 客户端，HUD 显示用）：
- * 护盾值、急切刀锋 buff/冷却、万般皆允形态状态、玩家元素状态。
+ * 护盾值、急切刀锋 buff/冷却、万般皆允形态状态、超越光暗能量槽、玩家元素状态。
  * 服务端权威收集（玩家/工具 NBT），客户端仅渲染。
  */
 public class PlayerStateSyncPacket {
@@ -27,12 +27,16 @@ public class PlayerStateSyncPacket {
     private final int apSinTicks;
     private final int apCombo;
     private final int devourTicks;
+    private final float transLight;   // 超越：光之能量（0-100）
+    private final float transDark;    // 超越：暗之能量（0-100）
+    private final int transActiveTicks; // 超越：激活剩余 tick
     private final Map<ElementType, ElementStatus> elementStates;
 
     public PlayerStateSyncPacket(float shield, float maxShield,
                                  int eagerBuffTicks, int eagerCooldownTicks,
                                  byte apMode, float apForbidden, int apSinTicks, int apCombo,
                                  int devourTicks,
+                                 float transLight, float transDark, int transActiveTicks,
                                  Map<ElementType, ElementStatus> elementStates) {
         this.shield = shield;
         this.maxShield = maxShield;
@@ -43,6 +47,9 @@ public class PlayerStateSyncPacket {
         this.apSinTicks = apSinTicks;
         this.apCombo = apCombo;
         this.devourTicks = devourTicks;
+        this.transLight = transLight;
+        this.transDark = transDark;
+        this.transActiveTicks = transActiveTicks;
         this.elementStates = elementStates;
     }
 
@@ -56,6 +63,9 @@ public class PlayerStateSyncPacket {
         buf.writeInt(msg.apSinTicks);
         buf.writeInt(msg.apCombo);
         buf.writeInt(msg.devourTicks);
+        buf.writeFloat(msg.transLight);
+        buf.writeFloat(msg.transDark);
+        buf.writeInt(msg.transActiveTicks);
         buf.writeByte(msg.elementStates.size());
         for (Map.Entry<ElementType, ElementStatus> entry : msg.elementStates.entrySet()) {
             buf.writeByte(entry.getKey().ordinal());
@@ -74,6 +84,9 @@ public class PlayerStateSyncPacket {
         int apSinTicks = buf.readInt();
         int apCombo = buf.readInt();
         int devourTicks = buf.readInt();
+        float transLight = buf.readFloat();
+        float transDark = buf.readFloat();
+        int transActiveTicks = buf.readInt();
         Map<ElementType, ElementStatus> states = new EnumMap<>(ElementType.class);
         int count = buf.readByte();
         ElementType[] values = ElementType.values();
@@ -84,7 +97,8 @@ public class PlayerStateSyncPacket {
             }
         }
         return new PlayerStateSyncPacket(shield, maxShield, eagerBuffTicks, eagerCooldownTicks,
-                apMode, apForbidden, apSinTicks, apCombo, devourTicks, states);
+                apMode, apForbidden, apSinTicks, apCombo, devourTicks,
+                transLight, transDark, transActiveTicks, states);
     }
 
     public static void handle(PlayerStateSyncPacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -93,6 +107,7 @@ public class PlayerStateSyncPacket {
             TcdexBuffHud.syncAll(msg.eagerBuffTicks, msg.eagerCooldownTicks,
                     msg.apMode, msg.apForbidden, msg.apSinTicks, msg.apCombo,
                     msg.devourTicks,
+                    msg.transLight, msg.transDark, msg.transActiveTicks,
                     msg.elementStates);
         });
         ctx.get().setPacketHandled(true);

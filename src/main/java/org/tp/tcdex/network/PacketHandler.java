@@ -31,5 +31,9 @@ public final class PacketHandler {
                 MonsterShieldSyncPacket::encode,
                 MonsterShieldSyncPacket::decode,
                 MonsterShieldSyncPacket::handle);
+        CHANNEL.registerMessage(2, TranscendenceActivatePacket.class,
+                TranscendenceActivatePacket::encode,
+                TranscendenceActivatePacket::decode,
+                TranscendenceActivatePacket::handle);
     }
 }

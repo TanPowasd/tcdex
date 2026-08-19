@@ -89,6 +89,9 @@ public class ElementalDamageEvents {
             return;
         }
 
+        // 超越激活：玩家全部攻击伤害 ×1.3（含护盾磨损/破盾溢出，近战远程统一；玩家基础机制，见 TranscendenceManager）
+        event.setAmount(org.tp.tcdex.transcendence.TranscendenceManager.applyDamageMultiplier(player, event.getAmount()));
+
         // 玩家手持匠魂工具上的棱镜共鸣/元素充能/五项之力词条（主手优先；取第一个生效；null = 动能武器）
         // 棱镜共鸣固定棱镜伤害（专属来源，与元素充能互斥；若经命令强加两者，棱镜共鸣优先）
         // 五项之力每次攻击随机元素（与元素充能互斥，权重遵循配置；命中施加对应元素状态）
@@ -146,7 +149,7 @@ public class ElementalDamageEvents {
             amount = dispatchElementalDamage(tool, element, amount);
             // 五项之力：命中施加本次 roll 到的元素状态（与伤害元素同源一致，走 ELEMENTAL_STATE_APPLY hook）
             if (fiveForces) {
-                FiveForcesModifier.applyHitState(tool, target, element);
+                FiveForcesModifier.applyHitState(tool, player, target, element);
             }
         } else {
             // 动能攻击 hook 联动：动能武器词条可调整动能伤害（目标参数开放：看目标是否带盾/带标记）
