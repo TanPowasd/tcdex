@@ -14,6 +14,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.damage.ModDamageSources;
+import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.network.PacketHandler;
@@ -143,6 +144,10 @@ public class PlayerShieldEvents {
                 || org.tp.tcdex.transcendence.TranscendenceManager.getActiveTicks(player, now) > 0) {
             return true;
         }
+        // 元素能量条：开启 HUD 时持续同步，避免爆发后残留旧值
+        if (ElementEnergyManager.getEnergy(player) > 0 || org.tp.tcdex.Config.elementEnergyHud) {
+            return true;
+        }
         ItemStack mainHand = player.getMainHandItem();
         if (!mainHand.isEmpty() && mainHand.getItem() instanceof IModifiable) {
             slimeknights.tconstruct.library.tools.nbt.ModDataNBT toolData = ToolStack.from(mainHand).getPersistentData();
@@ -190,6 +195,9 @@ public class PlayerShieldEvents {
             devourTicks = devour.getDuration();
         }
 
+        org.tp.tcdex.element.ElementType currentBurst = ElementEnergyManager.getCurrentElement(player);
+        byte burstElement = (byte) (currentBurst != null ? currentBurst.ordinal() + 1 : 0);
+
         PacketHandler.CHANNEL.send(PacketDistributor.PLAYER.with(() -> (net.minecraft.server.level.ServerPlayer) player),
                 new PlayerStateSyncPacket(
                         PlayerShieldManager.getShield(player),
@@ -200,6 +208,10 @@ public class PlayerShieldEvents {
                         org.tp.tcdex.transcendence.TranscendenceManager.getLightEnergy(player),
                         org.tp.tcdex.transcendence.TranscendenceManager.getDarkEnergy(player),
                         org.tp.tcdex.transcendence.TranscendenceManager.getActiveTicks(player, now),
+                        ElementEnergyManager.getEnergy(player),
+                        ElementEnergyManager.MAX_ENERGY,
+                        ElementEnergyManager.getRechargeEfficiency(player),
+                        burstElement,
                         IElementalEntity.of(player).getAllElementStates()));
     }
 }

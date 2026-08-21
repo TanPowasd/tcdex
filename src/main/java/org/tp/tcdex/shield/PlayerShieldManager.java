@@ -3,6 +3,7 @@ package org.tp.tcdex.shield;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.tp.tcdex.artifact.ArtifactManager;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
@@ -60,9 +61,9 @@ public final class PlayerShieldManager {
         return enabled;
     }
 
-    /** 护盾上限 */
+    /** 护盾上限（圣遗物护盾加成会提高上限） */
     public static float getMaxShield(Player player) {
-        return player.getMaxHealth() * shieldRatio;
+        return player.getMaxHealth() * shieldRatio * (1.0f + ArtifactManager.getTotalShieldBonus(player));
     }
 
     /** 当前护盾值 */

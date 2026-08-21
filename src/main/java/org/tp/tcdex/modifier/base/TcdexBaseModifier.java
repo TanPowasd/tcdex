@@ -798,6 +798,22 @@ public abstract class TcdexBaseModifier extends Modifier implements
         return modifierModifyReactionCooldown(tool, modifier, reaction, cooldown);
     }
 
+    @Override
+    public float modifyReactionAuraCost(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float auraCost) {
+        return modifierModifyReactionAuraCost(tool, modifier, reaction, auraCost);
+    }
+
+    @Override
+    public float modifyReactionDamage(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float damage) {
+        return modifierModifyReactionDamage(tool, modifier, reaction, damage);
+    }
+
+    @Override
+    public void onReactionTriggered(IToolStackView tool, ModifierEntry modifier, LivingEntity target,
+                                    org.tp.tcdex.reaction.ElementReaction reaction, @javax.annotation.Nullable LivingEntity source, float finalIntensity) {
+        modifierOnReactionTriggered(tool, modifier, target, reaction, source, finalIntensity);
+    }
+
     // ========================================================================
     //  可覆写方法（全部空实现 / 安全默认值，子类按需覆写）
     // ========================================================================
@@ -1209,5 +1225,17 @@ public abstract class TcdexBaseModifier extends Modifier implements
 
     protected int modifierModifyReactionCooldown(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, int cooldown) {
         return cooldown;
+    }
+
+    protected float modifierModifyReactionAuraCost(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float auraCost) {
+        return auraCost;
+    }
+
+    protected float modifierModifyReactionDamage(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float damage) {
+        return damage;
+    }
+
+    protected void modifierOnReactionTriggered(IToolStackView tool, ModifierEntry modifier, LivingEntity target,
+                                               org.tp.tcdex.reaction.ElementReaction reaction, @javax.annotation.Nullable LivingEntity source, float finalIntensity) {
     }
 }

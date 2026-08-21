@@ -17,6 +17,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.artifact.ArtifactManager;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
@@ -147,6 +148,8 @@ public class ElementalDamageEvents {
             amount *= resistance;
             // 元素攻击 hook 联动：工具上词条可调整元素伤害
             amount = dispatchElementalDamage(tool, element, amount);
+            // 圣遗物元素伤害加成
+            amount *= 1.0f + ArtifactManager.getTotalElementDamageBonus(player);
             // 五项之力：命中施加本次 roll 到的元素状态（与伤害元素同源一致，走 ELEMENTAL_STATE_APPLY hook）
             if (fiveForces) {
                 FiveForcesModifier.applyHitState(tool, player, target, element);

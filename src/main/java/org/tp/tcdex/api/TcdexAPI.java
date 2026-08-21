@@ -3,7 +3,9 @@ package org.tp.tcdex.api;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.light.LightLevelManager;
+import org.tp.tcdex.mastery.ElementalMasteryManager;
 
 /**
  * TCDEX 对外 API。
@@ -63,5 +65,59 @@ public final class TcdexAPI {
     /** 注册自定义伤害修正提供器 */
     public static void registerDamageModifierProvider(IDamageModifierProvider provider) {
         LightLevelManager.registerDamageModifierProvider(provider);
+    }
+
+    // ===== 元素精通（Elemental Mastery） =====
+
+    /** 获取玩家当前总元素精通（基础值 + 词条提供值） */
+    public static int getPlayerElementalMastery(Player player) {
+        return ElementalMasteryManager.getMastery(player);
+    }
+
+    /** 获取玩家基础元素精通（持久数据部分，不含词条） */
+    public static int getPlayerBaseElementalMastery(Player player) {
+        return ElementalMasteryManager.getBaseMastery(player);
+    }
+
+    /** 设置玩家基础元素精通 */
+    public static void setPlayerElementalMastery(Player player, int value) {
+        ElementalMasteryManager.setMastery(player, value);
+    }
+
+    /** 增加玩家基础元素精通 */
+    public static void addPlayerElementalMastery(Player player, int amount) {
+        ElementalMasteryManager.addMastery(player, amount);
+    }
+
+    // ===== 元素能量 / 充能效率 =====
+
+    /** 获取玩家当前元素能量 */
+    public static float getElementEnergy(Player player) {
+        return ElementEnergyManager.getEnergy(player);
+    }
+
+    /** 设置玩家元素能量 */
+    public static void setElementEnergy(Player player, float value) {
+        ElementEnergyManager.setEnergy(player, value);
+    }
+
+    /** 增加玩家元素能量 */
+    public static void addElementEnergy(Player player, float amount) {
+        ElementEnergyManager.addEnergy(player, amount);
+    }
+
+    /** 获取玩家元素充能效率（1.0 = 100%） */
+    public static float getElementRechargeEfficiency(Player player) {
+        return ElementEnergyManager.getRechargeEfficiency(player);
+    }
+
+    /** 设置玩家元素充能效率 */
+    public static void setElementRechargeEfficiency(Player player, float value) {
+        ElementEnergyManager.setRechargeEfficiency(player, value);
+    }
+
+    /** 尝试释放元素爆发 */
+    public static boolean tryActivateElementBurst(Player player) {
+        return ElementEnergyManager.tryActivateBurst(player, player.level().getGameTime());
     }
 }

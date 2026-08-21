@@ -124,6 +124,27 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     }
 
     @Override
+    public void addAuraAmount(ElementType type, float amount) {
+        if (amount <= 0) {
+            return;
+        }
+        ElementStatus status = tcdex$elementStates.computeIfAbsent(type, t -> new ElementStatus(0, 0));
+        status.aura += amount;
+        tcdex$broadcastAura();
+    }
+
+    @Override
+    public void addAura(ElementType type, float amount, int duration) {
+        if (amount <= 0) {
+            return;
+        }
+        ElementStatus status = tcdex$elementStates.computeIfAbsent(type, t -> new ElementStatus(0, 0));
+        status.aura += amount;
+        status.duration = Math.max(status.duration, duration);
+        tcdex$broadcastAura();
+    }
+
+    @Override
     public float consumeAura(ElementType type, float amount) {
         ElementStatus status = tcdex$elementStates.get(type);
         if (status == null || status.aura <= 0 || amount <= 0) {

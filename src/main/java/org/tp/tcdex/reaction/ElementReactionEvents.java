@@ -20,6 +20,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.mastery.ElementalMasteryManager;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
@@ -109,6 +110,10 @@ public class ElementReactionEvents {
                 data.markReaction(aura, now);
                 data.markReaction(ElementType.MISTFLOW, now);
                 diffuse(target, aura);
+                // 扩散也派发 REACTION hook 回调，方便词条联动
+                dispatchReactionTriggered(source, target, new ElementReaction(
+                        aura, ElementType.MISTFLOW, ReactionType.DIFFUSION,
+                        1.0f, 40, 0, DIFFUSION_RADIUS, 0.0f));
                 return;
             }
             return;
@@ -137,8 +142,39 @@ public class ElementReactionEvents {
             data.markReaction(aura, now);
             data.markReaction(trigger, now);
             applyReaction(target, reaction, source);
+            dispatchReactionTriggered(source, target, reaction);
             return;
         }
+    }
+
+    /**
+     * 使用指定反应直接尝试触发（供 API 手动触发）。
+     *
+     * @return 是否成功触发
+     */
+    public static boolean triggerReaction(LivingEntity target, ElementReaction reaction, @Nullable LivingEntity source) {
+        if (!enabled || target.level().isClientSide || reaction == null) {
+            return false;
+        }
+        IElementalEntity data = IElementalEntity.of(target);
+        long now = target.level().getGameTime();
+        reaction = adjustReaction(source, reaction);
+        ElementStatus status = data.getAllElementStates().get(reaction.getAuraElement());
+        if (status == null || status.aura <= 0) {
+            return false;
+        }
+        if (now - status.lastReactionTime < reaction.getCooldownTicks()) {
+            return false;
+        }
+        float consumed = data.consumeAura(reaction.getAuraElement(), reaction.getAuraCost());
+        if (consumed <= 0) {
+            return false;
+        }
+        data.markReaction(reaction.getAuraElement(), now);
+        data.markReaction(reaction.getTriggerElement(), now);
+        applyReaction(target, reaction, source);
+        dispatchReactionTriggered(source, target, reaction);
+        return true;
     }
 
     /** 通过攻击者手持匠魂工具上的 REACTION hook 调整反应参数 */
@@ -146,9 +182,11 @@ public class ElementReactionEvents {
         if (!(source instanceof Player player)) {
             return reaction;
         }
+        float auraCost = reaction.getAuraCost();
         float duration = reaction.getDuration();
         float radius = reaction.getRadius();
         float intensity = reaction.getIntensity();
+        float damage = reaction.getDamage();
         int cooldown = reaction.getCooldownTicks();
         for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
             if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
@@ -159,22 +197,54 @@ public class ElementReactionEvents {
                 continue;
             }
             for (ModifierEntry entry : tool.getModifierList()) {
+                auraCost = entry.getHook(TcdexHooks.REACTION)
+                        .modifyReactionAuraCost(tool, entry, reaction, auraCost);
                 duration = entry.getHook(TcdexHooks.REACTION)
                         .modifyReactionDuration(tool, entry, reaction, duration);
                 radius = entry.getHook(TcdexHooks.REACTION)
                         .modifyReactionRadius(tool, entry, reaction, radius);
                 intensity = entry.getHook(TcdexHooks.REACTION)
                         .modifyReactionIntensity(tool, entry, reaction, intensity);
+                damage = entry.getHook(TcdexHooks.REACTION)
+                        .modifyReactionDamage(tool, entry, reaction, damage);
                 cooldown = entry.getHook(TcdexHooks.REACTION)
                         .modifyReactionCooldown(tool, entry, reaction, cooldown);
             }
         }
+        // 元素精通全局属性：统一增强反应伤害/持续时间/范围，降低冷却/附着消耗
+        auraCost *= ElementalMasteryManager.getAuraCostMultiplier(player);
+        duration *= ElementalMasteryManager.getDurationMultiplier(player);
+        radius += ElementalMasteryManager.getRadiusBonus(player);
+        damage *= ElementalMasteryManager.getDamageMultiplier(player);
+        cooldown = (int) (cooldown * ElementalMasteryManager.getCooldownMultiplier(player));
+
         return new ElementReaction(reaction.getAuraElement(), reaction.getTriggerElement(), reaction.getType(),
-                reaction.getAuraCost(),
+                Math.max(0.01f, auraCost),
                 Math.max(0, cooldown),
                 Math.max(0, (int) duration),
                 Math.max(0.0f, radius),
-                intensity);
+                intensity,
+                Math.max(0.0f, damage));
+    }
+
+    /** 反应触发后回调所有攻击者工具上的 REACTION hook */
+    private static void dispatchReactionTriggered(@Nullable LivingEntity source, LivingEntity target, ElementReaction reaction) {
+        if (!(source instanceof Player player)) {
+            return;
+        }
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
+                continue;
+            }
+            ToolStack tool = ToolStack.from(stack);
+            if (tool.isBroken()) {
+                continue;
+            }
+            for (ModifierEntry entry : tool.getModifierList()) {
+                entry.getHook(TcdexHooks.REACTION)
+                        .onReactionTriggered(tool, entry, target, reaction, source, reaction.getIntensity());
+            }
+        }
     }
 
     private static void applyReaction(LivingEntity target, ElementReaction reaction, @Nullable LivingEntity source) {
@@ -227,7 +297,7 @@ public class ElementReactionEvents {
 
     /** 伤害类反应：对目标造成额外伤害，可带小范围 AOE */
     private static void applyDamage(LivingEntity target, ElementReaction reaction, @Nullable LivingEntity source) {
-        float damage = reaction.getIntensity() > 0 ? reaction.getIntensity() : 4.0f;
+        float damage = reaction.getDamage() > 0 ? reaction.getDamage() : 4.0f;
         net.minecraft.world.damagesource.DamageSource damageSource = source != null
                 ? ModDamageSources.element(source, reaction.getAuraElement())
                 : target.damageSources().magic();

@@ -12,6 +12,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.ElementalModifier;
 import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
@@ -34,15 +35,17 @@ public class TranscendenceEvents {
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
     public static void onPlayerAttackHit(LivingHurtEvent event) {
-        if (event.getEntity().level().isClientSide) {
+        if (event.getEntity().level().isClientSide || event.isCanceled()) {
             return;
         }
         Player player = eventPlayer(event.getSource().getDirectEntity());
         if (player == null) {
             return;
         }
-        TranscendenceManager.gainEnergy(player, heldAttackElement(player),
+        ElementType element = heldAttackElement(player);
+        TranscendenceManager.gainEnergy(player, element,
                 TranscendenceManager.HIT_GAIN, TranscendenceManager.HIT_GAIN_PRISM, TranscendenceManager.HIT_GAIN_OTHER);
+        ElementEnergyManager.onPlayerAttack(player, element);
     }
 
     @SubscribeEvent(priority = EventPriority.NORMAL)
@@ -54,8 +57,10 @@ public class TranscendenceEvents {
         if (player == null) {
             return;
         }
-        TranscendenceManager.gainEnergy(player, heldAttackElement(player),
+        ElementType element = heldAttackElement(player);
+        TranscendenceManager.gainEnergy(player, element,
                 TranscendenceManager.KILL_GAIN, TranscendenceManager.KILL_GAIN_PRISM, TranscendenceManager.KILL_GAIN_OTHER);
+        ElementEnergyManager.onPlayerKill(player, element);
     }
 
     /** 事件直接来源 → 玩家（近战本人 / 弹射物归属者） */

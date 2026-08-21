@@ -40,6 +40,12 @@ public interface IElementalEntity {
     /** 获取某元素当前附着量 */
     float getAura(ElementType type);
 
+    /** 直接增加某元素附着量（不改变命运2关键词层数/时长） */
+    void addAuraAmount(ElementType type, float amount);
+
+    /** 直接增加某元素附着量并设置/刷新状态时长 */
+    void addAura(ElementType type, float amount, int duration);
+
     /**
      * 消耗某元素附着量，返回实际消耗值。
      *

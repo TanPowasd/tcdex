@@ -111,9 +111,10 @@ public class ElementalModifier extends TcdexBaseModifier {
         if (world.isClientSide) {
             return;
         }
-        // 首次调用时随机并写入工具 NBT；已固化则为只读（零开销）
+        // 首次调用时随机并写入工具 NBT；已固化则跳过写回，避免每 tick 更新物品
+        boolean wasCharged = parseElement(tool.getPersistentData().getString(ELEMENT_KEY)) != null;
         getElement(tool);
-        if (tool instanceof ToolStack toolStack) {
+        if (!wasCharged && tool instanceof ToolStack toolStack) {
             toolStack.updateStack(stack);
         }
     }

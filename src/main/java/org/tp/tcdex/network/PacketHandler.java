@@ -39,5 +39,9 @@ public final class PacketHandler {
                 MonsterAuraSyncPacket::encode,
                 MonsterAuraSyncPacket::decode,
                 MonsterAuraSyncPacket::handle);
+        CHANNEL.registerMessage(4, ElementBurstActivatePacket.class,
+                ElementBurstActivatePacket::encode,
+                ElementBurstActivatePacket::decode,
+                ElementBurstActivatePacket::handle);
     }
 }

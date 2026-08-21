@@ -3,6 +3,7 @@ package org.tp.tcdex.network;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.hud.ElementEnergyHud;
 import org.tp.tcdex.hud.TcdexBuffHud;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.shield.PlayerShieldHud;
@@ -30,6 +31,10 @@ public class PlayerStateSyncPacket {
     private final float transLight;   // 超越：光之能量（0-100）
     private final float transDark;    // 超越：暗之能量（0-100）
     private final int transActiveTicks; // 超越：激活剩余 tick
+    private final float elementEnergy; // 元素能量（0-100）
+    private final float elementMaxEnergy;
+    private final float rechargeEfficiency;
+    private final byte burstElement;  // 当前爆发元素 ordinal+1，0=无
     private final Map<ElementType, ElementStatus> elementStates;
 
     public PlayerStateSyncPacket(float shield, float maxShield,
@@ -37,6 +42,7 @@ public class PlayerStateSyncPacket {
                                  byte apMode, float apForbidden, int apSinTicks, int apCombo,
                                  int devourTicks,
                                  float transLight, float transDark, int transActiveTicks,
+                                 float elementEnergy, float elementMaxEnergy, float rechargeEfficiency, byte burstElement,
                                  Map<ElementType, ElementStatus> elementStates) {
         this.shield = shield;
         this.maxShield = maxShield;
@@ -50,6 +56,10 @@ public class PlayerStateSyncPacket {
         this.transLight = transLight;
         this.transDark = transDark;
         this.transActiveTicks = transActiveTicks;
+        this.elementEnergy = elementEnergy;
+        this.elementMaxEnergy = elementMaxEnergy;
+        this.rechargeEfficiency = rechargeEfficiency;
+        this.burstElement = burstElement;
         this.elementStates = elementStates;
     }
 
@@ -66,6 +76,10 @@ public class PlayerStateSyncPacket {
         buf.writeFloat(msg.transLight);
         buf.writeFloat(msg.transDark);
         buf.writeInt(msg.transActiveTicks);
+        buf.writeFloat(msg.elementEnergy);
+        buf.writeFloat(msg.elementMaxEnergy);
+        buf.writeFloat(msg.rechargeEfficiency);
+        buf.writeByte(msg.burstElement);
         buf.writeByte(msg.elementStates.size());
         for (Map.Entry<ElementType, ElementStatus> entry : msg.elementStates.entrySet()) {
             buf.writeByte(entry.getKey().ordinal());
@@ -87,6 +101,10 @@ public class PlayerStateSyncPacket {
         float transLight = buf.readFloat();
         float transDark = buf.readFloat();
         int transActiveTicks = buf.readInt();
+        float elementEnergy = buf.readFloat();
+        float elementMaxEnergy = buf.readFloat();
+        float rechargeEfficiency = buf.readFloat();
+        byte burstElement = buf.readByte();
         Map<ElementType, ElementStatus> states = new EnumMap<>(ElementType.class);
         int count = buf.readByte();
         ElementType[] values = ElementType.values();
@@ -98,7 +116,9 @@ public class PlayerStateSyncPacket {
         }
         return new PlayerStateSyncPacket(shield, maxShield, eagerBuffTicks, eagerCooldownTicks,
                 apMode, apForbidden, apSinTicks, apCombo, devourTicks,
-                transLight, transDark, transActiveTicks, states);
+                transLight, transDark, transActiveTicks,
+                elementEnergy, elementMaxEnergy, rechargeEfficiency, burstElement,
+                states);
     }
 
     public static void handle(PlayerStateSyncPacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -109,6 +129,8 @@ public class PlayerStateSyncPacket {
                     msg.devourTicks,
                     msg.transLight, msg.transDark, msg.transActiveTicks,
                     msg.elementStates);
+            ElementEnergyHud.sync(msg.elementEnergy, msg.elementMaxEnergy,
+                    msg.rechargeEfficiency, msg.burstElement);
         });
         ctx.get().setPacketHandled(true);
     }

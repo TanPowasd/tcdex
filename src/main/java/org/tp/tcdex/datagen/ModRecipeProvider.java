@@ -35,6 +35,12 @@ public class ModRecipeProvider implements DataProvider {
         recipes.put(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "tools/modifiers/salvage/upgrade/eager_edge"),
                 modifierSalvage("tcdex:eager_edge"));
 
+        // 元素精通：升级（附魔之瓶）/ 拆解返还
+        recipes.put(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "tools/modifiers/upgrade/elemental_mastery"),
+                modifierUpgrade("tcdex:elemental_mastery", "minecraft:experience_bottle"));
+        recipes.put(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "tools/modifiers/salvage/upgrade/elemental_mastery"),
+                modifierSalvage("tcdex:elemental_mastery"));
+
         PackOutput.PathProvider pathProvider = output.createPathProvider(PackOutput.Target.DATA_PACK, "recipes");
         CompletableFuture<?>[] futures = recipes.entrySet().stream().map(entry ->
                 DataProvider.saveStable(cache, entry.getValue(), pathProvider.json(entry.getKey()))

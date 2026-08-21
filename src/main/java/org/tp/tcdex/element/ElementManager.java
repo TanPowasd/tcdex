@@ -267,8 +267,14 @@ public final class ElementManager {
             total += weight;
         }
         if (total <= 0) {
-            ElementType[] values = ElementType.values();
-            return values[random.nextInt(values.length)];
+            // 全 0 时退化为等概率，但 Prism 不参与随机分配
+            java.util.List<ElementType> candidates = new ArrayList<>();
+            for (ElementType type : ElementType.values()) {
+                if (type != ElementType.PRISM) {
+                    candidates.add(type);
+                }
+            }
+            return candidates.get(random.nextInt(candidates.size()));
         }
         int roll = random.nextInt(total);
         for (Map.Entry<ElementType, Integer> entry : weights.entrySet()) {

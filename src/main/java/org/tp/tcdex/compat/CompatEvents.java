@@ -3,6 +3,7 @@ package org.tp.tcdex.compat;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -11,6 +12,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.reaction.ElementReactionEvents;
 
@@ -57,6 +59,11 @@ public class CompatEvents {
 
         float stacks = Math.max(1.0f, element.getStacksPerHit() * SPELL_STACK_SCALE);
         IElementalEntity.of(target).addElementState(element, stacks, element.getStateDuration());
+
+        // 玩家受到元素伤害时获得少量元素能量
+        if (target instanceof Player player) {
+            ElementEnergyManager.onPlayerDamagedByElement(player, element);
+        }
     }
 
     /** 法术实体 id → TCDEX 元素（关键词子串匹配，铁魔法各版本 id 差异鲁棒） */

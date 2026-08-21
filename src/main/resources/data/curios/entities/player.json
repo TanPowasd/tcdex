@@ -1,0 +1,10 @@
+{
+  "entities": ["player"],
+  "slots": [
+    "artifact_flower",
+    "artifact_plume",
+    "artifact_sands",
+    "artifact_goblet",
+    "artifact_circlet"
+  ]
+}

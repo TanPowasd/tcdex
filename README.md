@@ -1,14 +1,17 @@
-# TCDEX
+# TCDEX（原命2）
 
-**匠魂 3（TConstruct）命运2 风格附属模组** — Forge 1.20.1
+**匠魂 3（TConstruct）原神 × 命运2 融合风格附属模组** — Forge 1.20.1
 
-本模组为匠魂工具/盔甲加入命运2 风格的核心系统：
+本模组为匠魂工具/盔甲加入 **原神式元素反应** 与 **命运2 风格核心系统**：
 
-- **元素充能**：武器打上「元素充能」词条后随机获得一种元素（烈日/电弧/虚空/冰影/缚丝），永久固化，攻击伤害从动能转化为元素伤害
+- **元素充能**：武器打上「元素充能」词条后随机获得一种元素（烈日/电弧/虚空/冰影/缚丝/沉星/岚流），永久固化，攻击伤害从动能转化为元素伤害
+- **元素反应**：原神式附着量/消耗模型，支持控制、伤害、增幅、护盾、扩散五类反应；与命运2 关键词共存
 - **元素关键词**：灼烧 DoT→引爆、减速→冻结→粉碎、挥发爆炸、连锁闪电、削弱——全部由怪物身上的元素状态驱动（Mixin 注入）
 - **元素护盾**：敌对生物生成时随机携带元素护盾（匹配元素 ×2 破盾效率，打穿触发破盾爆炸）
 - **光等系统**：命运2 风格光等（世界光等场 + 时间压力蔓延 + 伤害修正）
 - **玩家护盾**：脱战自动回复的护盾层 + 命运2 风格 HUD（蓝色护盾条、buff 列表）
+- **元素精通**：新增词条强化元素反应伤害/范围/冷却/附着消耗
+- **元素能量 / 元素爆发**：单一通用能量条，攻击/击杀/受击充能，能量满后按 X 释放七元素各自爆发
 
 本文档面向**其他附属模组开发者**，说明如何通过 TCDEX 的 API 与 Hook 体系扩展本模组。
 
@@ -510,6 +513,55 @@ protected void modifierAddTooltip(IToolStackView tool, ModifierEntry modifier, P
 }
 ```
 
+### 4.8 元素反应 Hook 与 API
+
+TCDEX 元素反应提供完整对外扩展点：
+
+**API 入口：`org.tp.tcdex.api.TcdexReactionAPI`**
+
+```java
+// 注册自定义反应（自动双向）
+TcdexReactionAPI.registerReaction(new ElementReaction(
+    ElementType.SOLAR, ElementType.ARC, ReactionType.DAMAGE,
+    1.0f, 40, 0, 2.0f, 8.0f));
+
+// 查询 / 取消
+ElementReaction reaction = TcdexReactionAPI.findReaction(ElementType.SOLAR, ElementType.ARC);
+TcdexReactionAPI.unregisterReaction(ElementType.SOLAR, ElementType.ARC);
+
+// 手动触发
+boolean ok = TcdexReactionAPI.triggerReaction(target, ElementType.SOLAR, ElementType.ARC, player);
+
+// 读写附着量
+TcdexReactionAPI.addAura(target, ElementType.SOLAR, 1.0f, 100);
+float aura = TcdexReactionAPI.getAura(target, ElementType.SOLAR);
+TcdexReactionAPI.consumeAura(target, ElementType.SOLAR, 1.0f);
+
+// 开关与衰减
+TcdexReactionAPI.setEnabled(true);
+TcdexReactionAPI.setAuraDecayPerTick(0.01f);
+```
+
+**词条 Hook：`TcdexHooks.REACTION`（基类已注册，子类直接覆写）**
+
+| 可覆写方法 | 作用 |
+|---|---|
+| `modifierModifyReactionAuraCost` | 调整附着量消耗 |
+| `modifierModifyReactionDuration` | 调整反应持续时间 |
+| `modifierModifyReactionRadius` | 调整反应范围 |
+| `modifierModifyReactionIntensity` | 调整反应强度（聚怪/增幅/护盾） |
+| `modifierModifyReactionDamage` | 调整伤害类反应伤害 |
+| `modifierModifyReactionCooldown` | 调整反应冷却 |
+| `modifierOnReactionTriggered` | 反应触发后的回调 |
+
+```java
+@Override
+protected float modifierModifyReactionDamage(IToolStackView tool, ModifierEntry modifier,
+                                             ElementReaction reaction, float damage) {
+    return damage * 1.5f; // 元素精通：反应伤害 +50%
+}
+```
+
 ---
 
 ## 5. 实体元素状态接口 IElementalEntity
@@ -558,6 +610,7 @@ IElementalEntity data = IElementalEntity.of(entity);   // 直接强转，无需�
 ```toml
 # 世界光等场
 worldBaseLight = 20
+nonTinkersWeaponLight = 20     # 普通武器（非匠魂）统一光等
 netherLightOffset = 25
 endLightOffset = 50
 dimensionLightOffsets = []      # 维度偏移表，如 twilightforest:twilight_forest=40
@@ -581,6 +634,8 @@ elementWeightPrism = 0          # 棱镜不可通过元素充能获得（Boss �
 # 元素反应（原神式附着/消耗模型，与命运2关键词共存）
 elementReactionsEnabled = true  # 元素反应总开关
 auraDecayPerTick = 0.01         # 附着量每 tick 衰减
+monsterAuraHud = true           # 显示目标元素附着 HUD
+elementEnergyHud = true         # 显示玩家元素能量条 HUD
 
 # 元素怪物攻击
 monsterElementalAttacks = true  # 怪物元素攻击总开关

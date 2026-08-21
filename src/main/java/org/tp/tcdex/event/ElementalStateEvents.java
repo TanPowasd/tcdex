@@ -28,6 +28,7 @@ import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.reaction.ElementReactionEvents;
@@ -126,11 +127,11 @@ public class ElementalStateEvents {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    @SubscribeEvent(priority = EventPriority.HIGH)
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity target = event.getEntity();
         Level level = target.level();
-        if (level.isClientSide) {
+        if (level.isClientSide || event.isCanceled()) {
             return;
         }
 
@@ -325,6 +326,9 @@ public class ElementalStateEvents {
         // 施加元素状态：层数按怪物系数缩放（标记型元素保底 1 层），时长同玩家武器
         float stacks = Math.max(1.0f, element.getStacksPerHit() * MONSTER_STACK_SCALE);
         IElementalEntity.of(target).addElementState(element, stacks, element.getStateDuration());
+
+        // 玩家受到元素伤害时获得少量元素能量
+        ElementEnergyManager.onPlayerDamagedByElement((Player) target, element);
 
         // 粒子反馈
         if (level instanceof ServerLevel serverLevel) {

@@ -2,6 +2,8 @@ package org.tp.tcdex.reaction;
 
 import org.tp.tcdex.element.ElementType;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -35,7 +37,7 @@ public final class ElementReactionRegistry {
             registerDirection(new ElementReaction(
                     reaction.getTriggerElement(), reaction.getAuraElement(), reaction.getType(),
                     reaction.getAuraCost(), reaction.getCooldownTicks(), reaction.getDuration(),
-                    reaction.getRadius(), reaction.getIntensity()));
+                    reaction.getRadius(), reaction.getIntensity(), reaction.getDamage()));
         }
     }
 
@@ -51,6 +53,36 @@ public final class ElementReactionRegistry {
         }
         Map<ElementType, ElementReaction> map = REACTIONS.get(aura);
         return map == null ? null : map.get(trigger);
+    }
+
+    /** 取消注册一条反应（同时移除反向） */
+    public static void unregister(ElementType aura, ElementType trigger) {
+        if (aura == null || trigger == null) {
+            return;
+        }
+        Map<ElementType, ElementReaction> map = REACTIONS.get(aura);
+        if (map != null) {
+            map.remove(trigger);
+            if (map.isEmpty()) {
+                REACTIONS.remove(aura);
+            }
+        }
+        Map<ElementType, ElementReaction> reverse = REACTIONS.get(trigger);
+        if (reverse != null) {
+            reverse.remove(aura);
+            if (reverse.isEmpty()) {
+                REACTIONS.remove(trigger);
+            }
+        }
+    }
+
+    /** 获取当前注册的全部反应（只读快照） */
+    public static Collection<ElementReaction> getAllReactions() {
+        Collection<ElementReaction> reactions = new ArrayList<>();
+        for (Map<ElementType, ElementReaction> map : REACTIONS.values()) {
+            reactions.addAll(map.values());
+        }
+        return reactions;
     }
 
     /** 注册第一批控制类反应 */

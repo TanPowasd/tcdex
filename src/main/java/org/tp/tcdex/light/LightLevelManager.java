@@ -4,15 +4,23 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.api.IDamageModifierProvider;
 import org.tp.tcdex.api.IEntityLightLevelProvider;
 import org.tp.tcdex.api.IItemLightLevelProvider;
+import org.tp.tcdex.artifact.ArtifactManager;
 import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.definition.MaterialVariant;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
@@ -43,6 +51,8 @@ public final class LightLevelManager {
 
     /** 默认怪物光等，可通过配置文件修改 */
     private static int defaultMonsterLight = 20;
+    /** 普通武器（非匠魂武器）统一光等 */
+    private static int nonTinkerWeaponLight = 20;
 
     /** 基础光等最低值 */
     private static final int BASE_LIGHT_MIN = 1;
@@ -177,6 +187,16 @@ public final class LightLevelManager {
     /** 设置怪物生成光等随机浮动范围 */
     public static void setMonsterSpawnRandomRange(int range) {
         monsterSpawnRandomRange = Math.max(0, range);
+    }
+
+    /** 获取普通武器统一光等 */
+    public static int getNonTinkerWeaponLight() {
+        return nonTinkerWeaponLight;
+    }
+
+    /** 设置普通武器统一光等 */
+    public static void setNonTinkerWeaponLight(int value) {
+        nonTinkerWeaponLight = Math.max(1, value);
     }
 
     /** 从 Forge 配置重新加载光等伤害修正系数 */
@@ -348,6 +368,25 @@ public final class LightLevelManager {
     }
 
     /**
+     * 判断是否为普通武器（非匠魂武器）。
+     * 包括原版剑/斧/弓/弩/三叉戟，以及其他 mod 中带有攻击伤害属性的武器。
+     */
+    public static boolean isNonTinkerWeapon(ItemStack stack) {
+        if (stack.isEmpty() || isTinkersItem(stack)) {
+            return false;
+        }
+        var item = stack.getItem();
+        if (item instanceof SwordItem || item instanceof AxeItem
+                || item instanceof BowItem || item instanceof CrossbowItem
+                || item instanceof TridentItem) {
+            return true;
+        }
+        // 其他 mod 武器：主手默认带有攻击伤害属性即视为武器
+        return stack.getAttributeModifiers(EquipmentSlot.MAINHAND)
+                .containsKey(Attributes.ATTACK_DAMAGE);
+    }
+
+    /**
      * 计算匠魂物品的基础光等。
      * 基础光等 = 10 + 材料阶级点数 + 强化等级点数。
      */
@@ -394,6 +433,10 @@ public final class LightLevelManager {
             if (provider.canProvide(stack)) {
                 return provider.getLightLevel(stack);
             }
+        }
+        // 普通武器（非匠魂）统一光等
+        if (isNonTinkerWeapon(stack)) {
+            return nonTinkerWeaponLight;
         }
         return 0;
     }
@@ -469,10 +512,14 @@ public final class LightLevelManager {
             count++;
         }
 
-        return count == 0 ? 0 : (int) Math.round((double) total / count);
+        int artifactLight = ArtifactManager.getTotalLight(player);
+        if (count == 0) {
+            return artifactLight;
+        }
+        return (int) Math.round((double) (total + artifactLight) / count);
     }
 
-    /** 计算玩家护甲平均光等：只统计身上穿戴的盔甲，不统计武器 */
+    /** 计算玩家护甲平均光等：只统计身上穿戴的盔甲，不统计武器；圣遗物光等作为额外加成 */
     public static int getPlayerArmorLightLevel(Player player) {
         int total = 0;
         int count = 0;
@@ -483,7 +530,8 @@ public final class LightLevelManager {
                 count++;
             }
         }
-        return count == 0 ? 0 : (int) Math.round((double) total / count);
+        int base = count == 0 ? 0 : (int) Math.round((double) total / count);
+        return base + ArtifactManager.getTotalLight(player);
     }
 
     /** 计算玩家武器光等：只看主手物品 */
@@ -510,7 +558,8 @@ public final class LightLevelManager {
         total += getLightLevel(player.getMainHandItem());
         count++;
 
-        return count == 0 ? 0 : (int) Math.round((double) total / count);
+        int base = count == 0 ? 0 : (int) Math.round((double) total / count);
+        return base + ArtifactManager.getTotalLight(player);
     }
 
     /** 计算当前服务器所有在线玩家的护甲平均光等（只算盔甲，不算武器） */

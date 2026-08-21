@@ -35,7 +35,18 @@ public class ModLanguageProvider extends LanguageProvider {
         add("item.tcdex.my_love", "I love GFF");
         add("item.tcdex.light_essence", "Light Essence");
         add("item.tcdex.guardian_emblem", "Guardian Emblem");
-        add("itemGroup.tcdex_tab", "TCDEX");
+        add("item.tcdex.artifact_flower", "Artifact Flower");
+        add("item.tcdex.artifact_plume", "Artifact Plume");
+        add("item.tcdex.artifact_sands", "Artifact Sands");
+        add("item.tcdex.artifact_goblet", "Artifact Goblet");
+        add("item.tcdex.artifact_circlet", "Artifact Circlet");
+        add("item.tcdex.artifact.slot", "Slot: %s");
+        add("item.tcdex.artifact.slot.artifact_flower", "Flower");
+        add("item.tcdex.artifact.slot.artifact_plume", "Plume");
+        add("item.tcdex.artifact.slot.artifact_sands", "Sands");
+        add("item.tcdex.artifact.slot.artifact_goblet", "Goblet");
+        add("item.tcdex.artifact.slot.artifact_circlet", "Circlet");
+        add("itemGroup.tcdex_tab", "TCDEX (Genshin x Destiny 2)");
 
         add("modifier.tcdex.eager_edge", "Eager Edge");
         add("modifier.tcdex.elemental", "Elemental Charge");
@@ -73,6 +84,12 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.all_permitted", "All Permitted");
         add("modifier.tcdex.all_permitted.flavor", "Nothing is true, everything is permitted");
         add("modifier.tcdex.all_permitted.description", "Right-click to switch between [Xu] and [Yun] forms. Xu: steal target armor and attack on hit (5 stacks/5s), accumulate Forbidden. Yun: consume Forbidden exponentially (1/2/4/8/16) for true damage ignoring armor, combo boosts damage. At 100 Forbidden, auto-overload AOE (4 blocks), then enter Sin (-50% damage); atone with 5 Xu-form hits.");
+
+        add("modifier.tcdex.elemental_mastery", "Elemental Mastery");
+        add("modifier.tcdex.elemental_mastery.flavor", "Every element sings in your hands");
+        add("modifier.tcdex.elemental_mastery.description", "Provides Elemental Mastery to the player. Each level grants +20 Mastery, which strengthens element reactions: damage, duration, radius, cooldown and aura cost.");
+        add("modifier.tcdex.elemental_mastery.tooltip", "Elemental Mastery +%s");
+
         add("modifier.tcdex.combat_echo", "Combat Echo");
         add("modifier.tcdex.combat_echo.flavor", "One blow, endless echoes");
         add("modifier.tcdex.combat_echo.description", "After a melee hit, deal an additional 50% of the damage dealt");
@@ -107,6 +124,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add("hud.tcdex.transcendence.charge", "Light %d / Dark %d");
         add("hud.tcdex.transcendence.ready", "Transcendence Ready");
         add("key.tcdex.transcendence", "Activate Transcendence");
+        add("key.tcdex.element_burst", "Activate Element Burst");
         add("key.categories.tcdex", "TCDEX");
         add("hud.tcdex.all_permitted.yun", "All Permitted");
         add("hud.tcdex.all_permitted.xu", "Nothing is True");
@@ -151,7 +169,18 @@ public class ModLanguageProvider extends LanguageProvider {
         add("item.tcdex.my_love", "此处应该表达些什么");
         add("item.tcdex.light_essence", "光之精华");
         add("item.tcdex.guardian_emblem", "守护者徽记");
-        add("itemGroup.tcdex_tab", "此处应该有些文字");
+        add("item.tcdex.artifact_flower", "圣遗物·花");
+        add("item.tcdex.artifact_plume", "圣遗物·羽");
+        add("item.tcdex.artifact_sands", "圣遗物·沙");
+        add("item.tcdex.artifact_goblet", "圣遗物·杯");
+        add("item.tcdex.artifact_circlet", "圣遗物·冠");
+        add("item.tcdex.artifact.slot", "部位: %s");
+        add("item.tcdex.artifact.slot.artifact_flower", "花");
+        add("item.tcdex.artifact.slot.artifact_plume", "羽");
+        add("item.tcdex.artifact.slot.artifact_sands", "沙");
+        add("item.tcdex.artifact.slot.artifact_goblet", "杯");
+        add("item.tcdex.artifact.slot.artifact_circlet", "冠");
+        add("itemGroup.tcdex_tab", "TCDEX（原命2）");
 
         add("modifier.tcdex.eager_edge", "急切刀锋");
         add("modifier.tcdex.elemental", "元素充能");
@@ -189,6 +218,12 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.all_permitted", "万般皆允");
         add("modifier.tcdex.all_permitted.flavor", "万物皆虚，万事皆允");
         add("modifier.tcdex.all_permitted.description", "右键切换【虚/允】双形态。虚形态：命中偷取目标护甲与攻击（5层/5秒），积累禁忌；允形态：等比消耗禁忌（1/2/4/8/16）造成无视护甲的真伤，连击提升伤害。禁忌满100自动超载AOE（4格），事后陷入罪业（伤害减半），虚形态命中5次赎罪解除。");
+
+        add("modifier.tcdex.elemental_mastery", "元素精通");
+        add("modifier.tcdex.elemental_mastery.flavor", "万元素皆为吾之臂膀");
+        add("modifier.tcdex.elemental_mastery.description", "为玩家提供元素精通属性。每级 +20 精通，强化元素反应：伤害、持续时间、范围、冷却与附着消耗。");
+        add("modifier.tcdex.elemental_mastery.tooltip", "元素精通 +%s");
+
         add("modifier.tcdex.combat_echo", "战斗回响");
         add("modifier.tcdex.combat_echo.flavor", "一击未尽，余响不绝");
         add("modifier.tcdex.combat_echo.description", "近战命中后，追加一次本击实际伤害 50% 的伤害");
@@ -223,6 +258,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add("hud.tcdex.transcendence.charge", "光 %d / 暗 %d");
         add("hud.tcdex.transcendence.ready", "超越就绪");
         add("key.tcdex.transcendence", "激活超越");
+        add("key.tcdex.element_burst", "释放元素爆发");
         add("key.categories.tcdex", "TCDEX");
         add("hud.tcdex.all_permitted.yun", "万事皆允");
         add("hud.tcdex.all_permitted.xu", "万物皆虚");

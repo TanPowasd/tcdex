@@ -19,7 +19,7 @@ modId = "tcdex" #mandatory
 # The version number of the mod
 version = "${mod_version}" #mandatory
 # A display name for the mod
-displayName = "tcdex" #mandatory
+displayName = "TCDEX (原命2)" #mandatory
 # A URL to query for updates for this mod. See the JSON update specification https://docs.minecraftforge.net/en/latest/misc/updatechecker/
 #updateJSONURL="https://change.me.example.invalid/updates.json" #optional
 # A URL for the "homepage" for this mod, displayed in the mod UI
@@ -101,7 +101,7 @@ side = "BOTH"
 
 [[dependencies.tcdex]]
 modId="curios"
-mandatory=false
+mandatory=true
 versionRange="[5.0.0,)"
 ordering = "NONE"
 side = "BOTH"

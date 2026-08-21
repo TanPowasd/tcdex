@@ -18,9 +18,15 @@ public class ElementReaction {
     private final int duration;
     private final float radius;
     private final float intensity;
+    private final float damage;
 
     public ElementReaction(ElementType auraElement, ElementType triggerElement, ReactionType type,
                            float auraCost, int cooldownTicks, int duration, float radius, float intensity) {
+        this(auraElement, triggerElement, type, auraCost, cooldownTicks, duration, radius, intensity, intensity);
+    }
+
+    public ElementReaction(ElementType auraElement, ElementType triggerElement, ReactionType type,
+                           float auraCost, int cooldownTicks, int duration, float radius, float intensity, float damage) {
         this.auraElement = auraElement;
         this.triggerElement = triggerElement;
         this.type = type;
@@ -29,6 +35,7 @@ public class ElementReaction {
         this.duration = Math.max(0, duration);
         this.radius = Math.max(0.0f, radius);
         this.intensity = intensity;
+        this.damage = Math.max(0.0f, damage);
     }
 
     public ElementType getAuraElement() {
@@ -61,5 +68,10 @@ public class ElementReaction {
 
     public float getIntensity() {
         return intensity;
+    }
+
+    /** 伤害类反应使用的伤害值；非伤害反应通常等于 intensity */
+    public float getDamage() {
+        return damage;
     }
 }

@@ -43,6 +43,7 @@ import org.tp.tcdex.modifier.melee.KineticSiphonModifier;
 import org.tp.tcdex.modifier.melee.KineticTremorsModifier;
 import org.tp.tcdex.modifier.melee.SynthoModifier;
 import org.tp.tcdex.modifier.special.AllPermittedModifier;
+import org.tp.tcdex.modifier.special.ElementalMasteryModifier;
 import org.tp.tcdex.network.PacketHandler;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -61,9 +62,10 @@ public class Tcdex {
         // 注册网络通道（护盾同步等）
         PacketHandler.register();
 
-        // 客户端：超越激活按键（玩家基础机制，非词条）
+        // 客户端：超越激活按键 + 元素爆发按键（玩家基础机制，非词条）
         if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
             org.tp.tcdex.transcendence.TranscendenceKeybind.register();
+            org.tp.tcdex.energy.ElementBurstKeybind.register();
         }
 
         // 其他 mod 软联动（冰与火之舞 / 铁魔法，不作为前置依赖）
@@ -86,6 +88,7 @@ public class Tcdex {
         modEventBus.addListener(KineticTremorsModifier::registerModifier);
         modEventBus.addListener(KineticSiphonModifier::registerModifier);
         modEventBus.addListener(org.tp.tcdex.modifier.special.WarBannerModifier::registerModifier);
+        modEventBus.addListener(ElementalMasteryModifier::registerModifier);
 
         // 注册自定义药水效果（吞噬等）
         TcdexEffects.register(modEventBus);

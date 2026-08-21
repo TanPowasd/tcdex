@@ -1,0 +1,16 @@
+{
+  "type": "tconstruct:modifier_salvage",
+  "modifier": "tcdex:elemental_mastery",
+  "slots": {
+    "upgrades": 1
+  },
+  "tools": {
+    "type": "forge:difference",
+    "base": {
+      "tag": "tconstruct:modifiable/melee"
+    },
+    "subtracted": {
+      "tag": "tconstruct:modifiable/single_use"
+    }
+  }
+}

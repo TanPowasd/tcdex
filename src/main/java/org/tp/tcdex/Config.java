@@ -261,6 +261,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue SHOW_LIGHT_HUD = BUILDER
             .comment("Show light level HUD on the screen.")
             .define("showLightHud", true);
+    private static final ForgeConfigSpec.IntValue NON_TINKERS_WEAPON_LIGHT = BUILDER
+            .comment("Light level for normal (non-Tinkers) weapons. Default: 20.")
+            .defineInRange("nonTinkersWeaponLight", 20, 1, 10000);
 
     // 玩家脱战自动回复护盾（命运2 风格）
     private static final ForgeConfigSpec.BooleanValue PLAYER_SHIELD_ENABLED = BUILDER
@@ -287,6 +290,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue MONSTER_AURA_HUD = BUILDER
             .comment("Show monster elemental aura HUD (name tag marker + crosshair aura list).")
             .define("monsterAuraHud", true);
+    private static final ForgeConfigSpec.BooleanValue ELEMENT_ENERGY_HUD = BUILDER
+            .comment("Show player elemental energy bar HUD.")
+            .define("elementEnergyHud", true);
 
     // 元素怪物：怪物元素攻击（命中玩家时施加元素状态）
     private static final ForgeConfigSpec.BooleanValue MONSTER_ELEMENTAL_ATTACKS = BUILDER
@@ -356,6 +362,7 @@ public class Config {
     public static boolean playerBuffHud;
     public static boolean monsterShieldHud;
     public static boolean monsterAuraHud;
+    public static boolean elementEnergyHud;
 
     private static boolean validateItemName(final Object obj) {
         if (!(obj instanceof final String itemName)) {
@@ -430,6 +437,7 @@ public class Config {
         playerBuffHud = PLAYER_BUFF_HUD.get();
         monsterShieldHud = MONSTER_SHIELD_HUD.get();
         monsterAuraHud = MONSTER_AURA_HUD.get();
+        elementEnergyHud = ELEMENT_ENERGY_HUD.get();
         LightLevelManager.reloadDamageConfig(
                 DEALT_OVERLEVEL_STEP.get(), DEALT_OVERLEVEL_CAP.get(),
                 DEALT_UNDERLEVEL_STEP.get(), DEALT_UNDERLEVEL_MIN.get(),
@@ -438,5 +446,6 @@ public class Config {
         );
         LightLevelManager.setDebugEnabled(DEBUG_LIGHT_DAMAGE.get());
         LightLevelManager.setHudEnabled(SHOW_LIGHT_HUD.get());
+        LightLevelManager.setNonTinkerWeaponLight(NON_TINKERS_WEAPON_LIGHT.get());
     }
 }
