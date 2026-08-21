@@ -30,6 +30,7 @@ import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
+import org.tp.tcdex.reaction.ElementReactionEvents;
 import org.tp.tcdex.shield.PrismShieldConfig;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.tools.item.IModifiable;
@@ -317,6 +318,9 @@ public class ElementalStateEvents {
         if (ElementManager.getAttackChance() < 1.0f && level.random.nextFloat() >= ElementManager.getAttackChance()) {
             return;
         }
+
+        // 先尝试元素反应，再施加怪物元素攻击附着
+        ElementReactionEvents.tryTriggerReaction(target, element, attacker);
 
         // 施加元素状态：层数按怪物系数缩放（标记型元素保底 1 层），时长同玩家武器
         float stacks = Math.max(1.0f, element.getStacksPerHit() * MONSTER_STACK_SCALE);

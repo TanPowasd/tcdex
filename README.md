@@ -543,7 +543,9 @@ IElementalEntity data = IElementalEntity.of(entity);   // 直接强转，无需�
 | 虚空 VOID | `void` | 标记型（+1） | 受击 → Volatile 爆炸（10% 最大生命 AOE） |
 | 冰影 STASIS | `stasis` | 每击 +50 层 | ≥50 减速 → 满 100 冻结；冻结中受击 Shatter +50% |
 | 缚丝 STRAND | `strand` | 标记型（+1） | 带标记者造成伤害 -40%（Sever） |
-| 棱镜 PRISM | `prism` | 标记型（+1） | 受击 Refract 折射：本击 25% 伤害溅射周围；棱镜攻击破任意元素盾（匹配效率 ×2，折射所有光）。**玩家无法通过元素充能词条获得（Boss 专属）** |
+| 沉星 SINKSTAR | `sinkstar` | 标记型（+1） | 参与元素反应：重力坍缩、沉霜镇压 |
+| 岚流 MISTFLOW | `mistflow` | 标记型（+1） | 参与元素反应：风暴锁链、岚蚀恐惧、岚流扩散 |
+| 棱镜 PRISM | `prism` | 标记型（+1） | 受击 Refract 折射：本击 25% 伤害溅射周围；棱镜攻击破任意元素盾（匹配效率 ×2，折射所有光）。**玩家无法通过元素充能词条获得（Boss 专属）**，不参与常规七元素反应 |
 
 元素爆炸/连锁**均不伤害玩家**（命运2 语义）；`AllPermittedModifier` 超载除外（有意设计）。
 
@@ -562,6 +564,8 @@ dimensionLightOffsets = []      # 维度偏移表，如 twilightforest:twilight_
 dimensionOffsetOther = 30       # 其他 mod 维度默认偏移
 distanceGradientStep = 3        # 每 1000 格 +3
 distanceGradientCap = 45
+biomeBaseLights = []            # 地形基础光等表，如 ["minecraft:desert=35", "minecraft:swamp=28"]
+biomeLightGradients = []        # 地形光等增加速度表，如 ["minecraft:desert=6", "minecraft:plains=3"]
 daysPerTimeBonus = 5            # 时间压力：每 5 活跃天 +1
 maxTimeBonus = 30
 timeSpreadStart = 2000          # 出生点安全区
@@ -569,10 +573,14 @@ timeSpreadEnd = 10000
 
 # 护盾与元素权重
 shieldBlacklist = []            # 不带元素盾/元素攻击的生物（modid:entity）
-shieldWeightSolar/Arc/Void/Stasis/Strand = 1
+shieldWeightSolar/Arc/Void/Stasis/Strand/Sinkstar/Mistflow = 1
 shieldWeightPrism = 0           # 棱镜暂不参与随机盾
-elementWeightSolar/Arc/Void/Stasis/Strand = 1
+elementWeightSolar/Arc/Void/Stasis/Strand/Sinkstar/Mistflow = 1
 elementWeightPrism = 0          # 棱镜不可通过元素充能获得（Boss 专属）
+
+# 元素反应（原神式附着/消耗模型，与命运2关键词共存）
+elementReactionsEnabled = true  # 元素反应总开关
+auraDecayPerTick = 0.01         # 附着量每 tick 衰减
 
 # 元素怪物攻击
 monsterElementalAttacks = true  # 怪物元素攻击总开关

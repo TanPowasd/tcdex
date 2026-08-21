@@ -30,6 +30,7 @@ import org.tp.tcdex.modifier.hook.KillingHook;
 import org.tp.tcdex.modifier.hook.KineticAttackModifierHook;
 import org.tp.tcdex.modifier.hook.PlayerShieldBreakHook;
 import org.tp.tcdex.modifier.hook.PlayerShieldHook;
+import org.tp.tcdex.modifier.hook.ReactionModifierHook;
 import org.tp.tcdex.modifier.hook.ShieldBreakHook;
 import org.tp.tcdex.modifier.hook.TcdexHooks;
 import slimeknights.mantle.client.TooltipKey;
@@ -158,7 +159,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
         SlingAngleModifierHook, SlingForceModifierHook, SlingLaunchModifierHook,
         // TCDEX 自定义
         KillingHook, ShieldBreakHook, PlayerShieldHook, PlayerShieldBreakHook, ElementalStateApplyHook,
-        ElementalKeywordHook, KineticAttackModifierHook {
+        ElementalKeywordHook, KineticAttackModifierHook, ReactionModifierHook {
 
     @Override
     protected void registerHooks(ModuleHookMap.Builder hookBuilder) {
@@ -194,7 +195,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
                 // TCDEX 自定义
                 TcdexHooks.KILLING_HOOK, TcdexHooks.SHIELD_BREAK, TcdexHooks.PLAYER_SHIELD,
                 TcdexHooks.PLAYER_SHIELD_BREAK, TcdexHooks.ELEMENTAL_STATE_APPLY, TcdexHooks.ELEMENTAL_KEYWORD,
-                TcdexHooks.KINETIC_ATTACK);
+                TcdexHooks.KINETIC_ATTACK, TcdexHooks.REACTION);
     }
 
     // ========================================================================
@@ -777,6 +778,26 @@ public abstract class TcdexBaseModifier extends Modifier implements
         return modifierModifyKineticShieldEfficiency(tool, modifier, shieldElement, efficiency);
     }
 
+    @Override
+    public float modifyReactionDuration(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float duration) {
+        return modifierModifyReactionDuration(tool, modifier, reaction, duration);
+    }
+
+    @Override
+    public float modifyReactionRadius(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float radius) {
+        return modifierModifyReactionRadius(tool, modifier, reaction, radius);
+    }
+
+    @Override
+    public float modifyReactionIntensity(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float intensity) {
+        return modifierModifyReactionIntensity(tool, modifier, reaction, intensity);
+    }
+
+    @Override
+    public int modifyReactionCooldown(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, int cooldown) {
+        return modifierModifyReactionCooldown(tool, modifier, reaction, cooldown);
+    }
+
     // ========================================================================
     //  可覆写方法（全部空实现 / 安全默认值，子类按需覆写）
     // ========================================================================
@@ -1172,5 +1193,21 @@ public abstract class TcdexBaseModifier extends Modifier implements
 
     protected float modifierModifyKineticShieldEfficiency(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType shieldElement, float efficiency) {
         return efficiency;
+    }
+
+    protected float modifierModifyReactionDuration(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float duration) {
+        return duration;
+    }
+
+    protected float modifierModifyReactionRadius(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float radius) {
+        return radius;
+    }
+
+    protected float modifierModifyReactionIntensity(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, float intensity) {
+        return intensity;
+    }
+
+    protected int modifierModifyReactionCooldown(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.reaction.ElementReaction reaction, int cooldown) {
+        return cooldown;
     }
 }

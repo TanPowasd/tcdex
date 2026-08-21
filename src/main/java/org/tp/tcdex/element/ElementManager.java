@@ -23,6 +23,19 @@ public final class ElementManager {
     /** 怪物元素抗性/弱点表（entity id → 元素 → 倍率；配置 monsterElementResistances，运行时重载） */
     private static final Map<String, Map<ElementType, Float>> RESISTANCES = new HashMap<>();
 
+    /** 元素附着量自然衰减速度（每 tick 减少量；默认 0.01，约 5 秒从 1.0 衰减到 0） */
+    private static float auraDecayPerTick = 0.01f;
+
+    /** 获取当前元素附着量衰减速度 */
+    public static float getAuraDecayPerTick() {
+        return auraDecayPerTick;
+    }
+
+    /** 设置元素附着量衰减速度（后续可通过配置开放） */
+    public static void setAuraDecayPerTick(float decay) {
+        auraDecayPerTick = Math.max(0.0f, decay);
+    }
+
     /**
      * 从 Forge 配置重载元素抗性表。
      *
@@ -65,7 +78,7 @@ public final class ElementManager {
         }
     }
 
-    /** 按元素 id 解析（solar/arc/void/stasis/strand/prism），无效返回 null */
+    /** 按元素 id 解析（solar/arc/void/stasis/strand/prism/sinkstar/mistflow），无效返回 null */
     @javax.annotation.Nullable
     private static ElementType parseElement(String id) {
         for (ElementType type : ElementType.values()) {

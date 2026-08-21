@@ -30,6 +30,8 @@ public final class ModDamageSources {
     public static final ResourceKey<DamageType> VOID_DAMAGE_TYPE = elementKey("void");
     public static final ResourceKey<DamageType> STASIS_DAMAGE_TYPE = elementKey("stasis");
     public static final ResourceKey<DamageType> STRAND_DAMAGE_TYPE = elementKey("strand");
+    public static final ResourceKey<DamageType> SINKSTAR_DAMAGE_TYPE = elementKey("sinkstar");
+    public static final ResourceKey<DamageType> MISTFLOW_DAMAGE_TYPE = elementKey("mistflow");
     public static final ResourceKey<DamageType> PRISM_DAMAGE_TYPE = elementKey("prism");
 
     /**
@@ -63,7 +65,9 @@ public final class ModDamageSources {
     /** 判断伤害源是否为 TCDEX 元素伤害 */
     public static boolean isElementDamage(net.minecraft.world.damagesource.DamageSource source) {
         return source.is(SOLAR_DAMAGE_TYPE) || source.is(ARC_DAMAGE_TYPE) || source.is(VOID_DAMAGE_TYPE)
-                || source.is(STASIS_DAMAGE_TYPE) || source.is(STRAND_DAMAGE_TYPE) || source.is(PRISM_DAMAGE_TYPE);
+                || source.is(STASIS_DAMAGE_TYPE) || source.is(STRAND_DAMAGE_TYPE)
+                || source.is(SINKSTAR_DAMAGE_TYPE) || source.is(MISTFLOW_DAMAGE_TYPE)
+                || source.is(PRISM_DAMAGE_TYPE);
     }
 
     /** 判断伤害源是否为 TCDEX 自定义伤害类型（元素/动能/纯粹/灼烧 DoT） */
@@ -82,11 +86,27 @@ public final class ModDamageSources {
             case VOID -> VOID_DAMAGE_TYPE;
             case STASIS -> STASIS_DAMAGE_TYPE;
             case STRAND -> STRAND_DAMAGE_TYPE;
+            case SINKSTAR -> SINKSTAR_DAMAGE_TYPE;
+            case MISTFLOW -> MISTFLOW_DAMAGE_TYPE;
             case PRISM -> PRISM_DAMAGE_TYPE;
         };
         return new DamageSource(
                 attacker.level().registryAccess().registryOrThrow(Registries.DAMAGE_TYPE).getHolderOrThrow(key),
                 attacker);
+    }
+
+    /** 从伤害源解析对应的 TCDEX 元素；非 TCDEX 元素伤害返回 null */
+    @javax.annotation.Nullable
+    public static ElementType getElement(DamageSource source) {
+        if (source.is(SOLAR_DAMAGE_TYPE)) return ElementType.SOLAR;
+        if (source.is(ARC_DAMAGE_TYPE)) return ElementType.ARC;
+        if (source.is(VOID_DAMAGE_TYPE)) return ElementType.VOID;
+        if (source.is(STASIS_DAMAGE_TYPE)) return ElementType.STASIS;
+        if (source.is(STRAND_DAMAGE_TYPE)) return ElementType.STRAND;
+        if (source.is(SINKSTAR_DAMAGE_TYPE)) return ElementType.SINKSTAR;
+        if (source.is(MISTFLOW_DAMAGE_TYPE)) return ElementType.MISTFLOW;
+        if (source.is(PRISM_DAMAGE_TYPE)) return ElementType.PRISM;
+        return null;
     }
 
     /** 构造灼烧 DoT 伤害源（无视无敌帧；来源为实体自身） */

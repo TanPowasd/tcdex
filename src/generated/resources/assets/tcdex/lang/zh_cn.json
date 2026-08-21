@@ -59,7 +59,7 @@
   "modifier.tcdex.combat_echo.flavor": "一击未尽，余响不绝",
   "modifier.tcdex.eager_edge": "急切刀锋",
   "modifier.tcdex.elemental": "元素充能",
-  "modifier.tcdex.elemental.description": "打上后随机获得一种元素能力（烈日/电弧/虚空/冰影/缚丝），一旦确定无法改变。攻击转化为对应元素伤害，并触发元素关键词：烈日持续灼烧并在满层时引爆；冰影渐进减速、冻结后受击粉碎增伤；虚空受击爆炸增伤、击杀回血；电弧连锁闪电并致盲、击杀获得强化；缚丝削弱敌方伤害、满层悬挂、击杀获得织甲减伤。",
+  "modifier.tcdex.elemental.description": "打上后随机获得一种元素能力（烈日/电弧/虚空/冰影/缚丝/沉星/岚流），一旦确定无法改变。攻击转化为对应元素伤害，并触发元素关键词：烈日持续灼烧并在满层时引爆；冰影渐进减速、冻结后受击粉碎增伤；虚空受击爆炸增伤、击杀回血；电弧连锁闪电并致盲、击杀获得强化；缚丝削弱敌方伤害、满层悬挂、击杀获得织甲减伤；沉星与岚流参与 TCDEX 元素反应。",
   "modifier.tcdex.elemental.element.arc": "电弧",
   "modifier.tcdex.elemental.element.prism": "棱镜",
   "modifier.tcdex.elemental.element.solar": "烈日",
@@ -89,5 +89,9 @@
   "modifier.tcdex.war_banner": "战争旗帜",
   "modifier.tcdex.war_banner.description": "击杀扬旗：持有本词条击杀任意敌人扬起战争旗帜（叠层上限 4，8 秒无击杀落地）。旗帜期间 8 格内玩家（含自己）每层伤害 +8%、每秒治疗 0.5。",
   "modifier.tcdex.war_banner.flavor": "举起旗帜，集结光能",
-  "tooltip.tcdex.light_level": "光等: %s"
+  "tooltip.tcdex.light_level": "光等: %s",
+  "modifier.tcdex.elemental.element.sinkstar": "沉星",
+  "modifier.tcdex.elemental.element.mistflow": "岚流",
+  "death.attack.tcdex.sinkstar": "%1$s 被沉星压碎",
+  "death.attack.tcdex.mistflow": "%1$s 被岚流卷散"
 }

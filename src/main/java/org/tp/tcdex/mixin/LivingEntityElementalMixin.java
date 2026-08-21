@@ -21,6 +21,7 @@ import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.network.MonsterAuraSyncPacket;
 import org.tp.tcdex.network.MonsterShieldSyncPacket;
 import org.tp.tcdex.network.PacketHandler;
 import org.tp.tcdex.shield.PrismShieldConfig;
@@ -98,16 +99,59 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
         ElementStatus status = tcdex$elementStates.computeIfAbsent(type, t -> new ElementStatus(0, 0));
         status.stacks = Math.min(ElementStatus.MAX_STACKS, status.stacks + stacks);
         status.duration = Math.max(status.duration, duration);
+        // 元素反应附着量：每次施加元素时按元素基础附着量累加
+        status.aura += Math.max(0.0f, type.getAuraPerHit());
+        tcdex$broadcastAura();
     }
 
     @Override
     public void clearElementState(ElementType type) {
+        tcdex$broadcastAuraClear(type);
         tcdex$elementStates.remove(type);
     }
 
     @Override
     public Map<ElementType, ElementStatus> getAllElementStates() {
         return tcdex$elementStates;
+    }
+
+    // ===== 元素附着量实现（用于 TCDEX 元素反应） =====
+
+    @Override
+    public float getAura(ElementType type) {
+        ElementStatus status = tcdex$elementStates.get(type);
+        return status == null ? 0 : status.aura;
+    }
+
+    @Override
+    public float consumeAura(ElementType type, float amount) {
+        ElementStatus status = tcdex$elementStates.get(type);
+        if (status == null || status.aura <= 0 || amount <= 0) {
+            return 0;
+        }
+        float consumed = Math.min(status.aura, amount);
+        status.aura -= consumed;
+        if (status.aura <= 0) {
+            tcdex$broadcastAuraClear(type);
+        } else {
+            tcdex$broadcastAura();
+        }
+        // 附着量归零时保留 keyword stacks/duration，仅清除“附着”本身
+        return consumed;
+    }
+
+    @Override
+    public long getLastReactionTime(ElementType type) {
+        ElementStatus status = tcdex$elementStates.get(type);
+        return status == null ? 0 : status.lastReactionTime;
+    }
+
+    @Override
+    public void markReaction(ElementType type, long gameTime) {
+        ElementStatus status = tcdex$elementStates.get(type);
+        if (status != null) {
+            status.lastReactionTime = gameTime;
+        }
     }
 
     // ===== 元素护盾实现（懒加载：首次访问时查 ElementManager 护盾表） =====
@@ -192,6 +236,34 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
                         tcdex$shieldAmount));
     }
 
+    /** 元素附着变化广播给追踪该实体的玩家（客户端元素附着 HUD） */
+    @Unique
+    private void tcdex$broadcastAura() {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self.level().isClientSide) {
+            return;
+        }
+        for (Map.Entry<ElementType, ElementStatus> entry : tcdex$elementStates.entrySet()) {
+            if (entry.getValue().aura > 0) {
+                PacketHandler.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> self),
+                        new MonsterAuraSyncPacket(self.getId(),
+                                (byte) (entry.getKey().ordinal() + 1),
+                                entry.getValue().aura));
+            }
+        }
+    }
+
+    /** 清除指定元素的附着显示 */
+    @Unique
+    private void tcdex$broadcastAuraClear(ElementType type) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self.level().isClientSide) {
+            return;
+        }
+        PacketHandler.CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> self),
+                new MonsterAuraSyncPacket(self.getId(), (byte) (type.ordinal() + 1), 0.0f));
+    }
+
     /**
      * 懒加载兜底：敌对生物加权随机护盾，其余无盾。
      * 正常情况下生成时已由 ElementalStateEvents 分配（setShield），此处仅兜底。
@@ -238,8 +310,18 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
             // 计时衰减
             status.duration--;
             if (status.duration <= 0) {
+                tcdex$broadcastAuraClear(type);
                 iterator.remove();
                 continue;
+            }
+
+            // 元素附着量衰减（用于元素反应）
+            if (status.aura > 0) {
+                float oldAura = status.aura;
+                status.aura = Math.max(0.0f, status.aura - ElementManager.getAuraDecayPerTick());
+                if (oldAura > 0 && status.aura <= 0) {
+                    tcdex$broadcastAuraClear(type);
+                }
             }
 
             // 烈日：满 100 层 → Ignite 引爆

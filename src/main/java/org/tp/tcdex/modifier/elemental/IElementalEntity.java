@@ -21,6 +21,7 @@ public interface IElementalEntity {
 
     /**
      * 叠加元素状态：层数累加（封顶 100），时长取较大值刷新。
+     * 同时会按 {@link ElementType#getAuraPerHit()} 增加该元素的附着量。
      *
      * @param type     元素类型
      * @param stacks   本次叠加的层数（烈日/冰影用；标记型元素传 1）
@@ -28,11 +29,31 @@ public interface IElementalEntity {
      */
     void addElementState(ElementType type, float stacks, int duration);
 
-    /** 清除某元素状态 */
+    /** 清除某元素状态（同时清除附着量与反应冷却记录） */
     void clearElementState(ElementType type);
 
     /** 获取全部元素状态（只读遍历用） */
     Map<ElementType, ElementStatus> getAllElementStates();
+
+    // ===== 元素附着量（用于 TCDEX 元素反应） =====
+
+    /** 获取某元素当前附着量 */
+    float getAura(ElementType type);
+
+    /**
+     * 消耗某元素附着量，返回实际消耗值。
+     *
+     * @param type   元素类型
+     * @param amount 希望消耗的附着量
+     * @return 实际消耗的附着量（不会超过当前附着量）
+     */
+    float consumeAura(ElementType type, float amount);
+
+    /** 获取某元素最近一次参与反应的世界时间（gameTime，0 = 从未参与） */
+    long getLastReactionTime(ElementType type);
+
+    /** 记录某元素最近一次参与反应的世界时间 */
+    void markReaction(ElementType type, long gameTime);
 
     // ===== 元素护盾（命运2 匹配元素破盾） =====
 

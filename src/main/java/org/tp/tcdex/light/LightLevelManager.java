@@ -64,6 +64,10 @@ public final class LightLevelManager {
     private static int otherDimensionLightOffset = 30;
     /** 维度光等偏移表：维度注册名 → 偏移（覆盖内置与默认，兼容其他 mod 维度） */
     private static final Map<String, Integer> DIMENSION_LIGHT_OFFSETS = new HashMap<>();
+    /** 生物群系基础光等表：biome id → 基础光等（未配置时使用 worldBaseLight） */
+    private static final Map<String, Integer> BIOME_BASE_LIGHTS = new HashMap<>();
+    /** 生物群系距离梯度表：biome id → 每 1000 格增加的光等（未配置时使用 distanceGradientStep） */
+    private static final Map<String, Integer> BIOME_LIGHT_GRADIENTS = new HashMap<>();
     /** 距离梯度：每 1000 格增加的光等 */
     private static int distanceGradientStep = 3;
     /** 距离梯度上限 */
@@ -229,6 +233,56 @@ public final class LightLevelManager {
                 DIMENSION_LIGHT_OFFSETS.put(id, Math.max(0, Integer.parseInt(value)));
             } catch (NumberFormatException ignored) {
                 // 忽略无法解析的行
+            }
+        }
+    }
+
+    /**
+     * 从 Forge 配置重新加载生物群系光等表。
+     *
+     * @param baseEntries     格式为 "biome_id=基础光等"，如 "minecraft:desert=35"
+     * @param gradientEntries 格式为 "biome_id=每千格增加光等"，如 "minecraft:desert=6"
+     */
+    public static void reloadBiomeConfig(List<? extends String> baseEntries, List<? extends String> gradientEntries) {
+        BIOME_BASE_LIGHTS.clear();
+        if (baseEntries != null) {
+            for (String entry : baseEntries) {
+                if (entry == null) {
+                    continue;
+                }
+                String trimmed = entry.trim();
+                int eq = trimmed.indexOf('=');
+                if (eq <= 0 || eq == trimmed.length() - 1) {
+                    continue;
+                }
+                String id = trimmed.substring(0, eq).trim();
+                String value = trimmed.substring(eq + 1).trim();
+                try {
+                    BIOME_BASE_LIGHTS.put(id, Math.max(1, Integer.parseInt(value)));
+                } catch (NumberFormatException ignored) {
+                    // 忽略无法解析的行
+                }
+            }
+        }
+
+        BIOME_LIGHT_GRADIENTS.clear();
+        if (gradientEntries != null) {
+            for (String entry : gradientEntries) {
+                if (entry == null) {
+                    continue;
+                }
+                String trimmed = entry.trim();
+                int eq = trimmed.indexOf('=');
+                if (eq <= 0 || eq == trimmed.length() - 1) {
+                    continue;
+                }
+                String id = trimmed.substring(0, eq).trim();
+                String value = trimmed.substring(eq + 1).trim();
+                try {
+                    BIOME_LIGHT_GRADIENTS.put(id, Math.max(0, Integer.parseInt(value)));
+                } catch (NumberFormatException ignored) {
+                    // 忽略无法解析的行
+                }
             }
         }
     }
@@ -521,10 +575,42 @@ public final class LightLevelManager {
         return otherDimensionLightOffset;
     }
 
-    /** 距离梯度：距出生点每 1000 格增加光等，封顶 */
+    /** 获取位置所在生物群系注册名（如 minecraft:plains），无法解析时返回 null */
+    @javax.annotation.Nullable
+    private static String getBiomeId(Level level, BlockPos pos) {
+        return level.getBiome(pos).unwrapKey()
+                .map(key -> key.location().toString())
+                .orElse(null);
+    }
+
+    /** 获取该生物群系的基础光等；未配置时回退到全局 worldBaseLight */
+    public static int getBiomeBaseLight(Level level, BlockPos pos) {
+        String biome = getBiomeId(level, pos);
+        if (biome != null) {
+            Integer value = BIOME_BASE_LIGHTS.get(biome);
+            if (value != null) {
+                return Math.max(1, value);
+            }
+        }
+        return worldBaseLight;
+    }
+
+    /** 获取该生物群系的距离光等增加速度（每 1000 格）；未配置时回退到全局 distanceGradientStep */
+    public static int getBiomeDistanceGradientStep(Level level, BlockPos pos) {
+        String biome = getBiomeId(level, pos);
+        if (biome != null) {
+            Integer value = BIOME_LIGHT_GRADIENTS.get(biome);
+            if (value != null) {
+                return Math.max(0, value);
+            }
+        }
+        return distanceGradientStep;
+    }
+
+    /** 距离梯度：距出生点每 1000 格增加光等，封顶；速度可按生物群系配置 */
     public static int getDistanceLightGradient(Level level, BlockPos pos) {
         double distance = Math.sqrt(pos.distSqr(level.getSharedSpawnPos()));
-        int gradient = (int) (distance / 1000.0 * distanceGradientStep);
+        int gradient = (int) (distance / 1000.0 * getBiomeDistanceGradientStep(level, pos));
         return Math.min(distanceGradientCap, gradient);
     }
 
@@ -542,11 +628,11 @@ public final class LightLevelManager {
 
     /**
      * 世界光等场基础值（不含随机浮动）：
-     * 基线 + 维度偏移 + 距离梯度 + 时间压力×蔓延权重。
+     * 地形基础光等（可被生物群系覆盖） + 维度偏移 + 距离梯度 + 时间压力×蔓延权重。
      * 与玩家光等完全解耦：怪物光等由世界位置与时间决定，玩家升级后可碾压低级区域。
      */
     public static int getBaseWorldLight(Level level, BlockPos pos) {
-        int light = worldBaseLight + getDimensionLightOffset(level) + getDistanceLightGradient(level, pos);
+        int light = getBiomeBaseLight(level, pos) + getDimensionLightOffset(level) + getDistanceLightGradient(level, pos);
         int timeBonus = Math.round(getWorldTimeBonus(level) * getTimeSpreadFactor(level, pos));
         return Math.max(1, light + timeBonus);
     }

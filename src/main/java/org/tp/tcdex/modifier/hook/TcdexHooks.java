@@ -38,6 +38,9 @@ public final class TcdexHooks {
     /** 元素关键词结算 hook：词条调整 Sever/Shatter/Weaken/Volatile/Jolt/Refract 的结算数值（倍率/伤害/半径） */
     public static final ModuleHook<ElementalKeywordHook> ELEMENTAL_KEYWORD;
 
+    /** 元素反应 hook：词条调整反应持续时间/范围/强度/冷却 */
+    public static final ModuleHook<ReactionModifierHook> REACTION;
+
     static {
         KILLING_HOOK = ModifierHooks.register(
                 ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "killing_hook"),
@@ -93,6 +96,13 @@ public final class TcdexHooks {
                 ElementalKeywordHook.class,
                 ElementalKeywordHook.AllMerger::new,
                 new ElementalKeywordHook() {
+                }
+        );
+        REACTION = ModifierHooks.register(
+                ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "reaction"),
+                ReactionModifierHook.class,
+                ReactionModifierHook.AllMerger::new,
+                new ReactionModifierHook() {
                 }
         );
     }

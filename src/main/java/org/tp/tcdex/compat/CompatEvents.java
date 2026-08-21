@@ -12,6 +12,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.reaction.ElementReactionEvents;
 
 /**
  * 铁魔法（irons_spellbooks）软联动：法术命中元素化。
@@ -49,6 +50,11 @@ public class CompatEvents {
             return;
         }
         LivingEntity target = event.getEntity();
+        // 先尝试元素反应，再施加本次法术元素附着
+        Entity sourceEntity = event.getSource().getEntity();
+        LivingEntity source = sourceEntity instanceof LivingEntity living ? living : null;
+        ElementReactionEvents.tryTriggerReaction(target, element, source);
+
         float stacks = Math.max(1.0f, element.getStacksPerHit() * SPELL_STACK_SCALE);
         IElementalEntity.of(target).addElementState(element, stacks, element.getStateDuration());
     }

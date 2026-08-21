@@ -59,7 +59,7 @@
   "modifier.tcdex.combat_echo.flavor": "One blow, endless echoes",
   "modifier.tcdex.eager_edge": "Eager Edge",
   "modifier.tcdex.elemental": "Elemental Charge",
-  "modifier.tcdex.elemental.description": "Grants a random element (Solar/Arc/Void/Stasis/Strand) when applied, locked forever. Attacks convert to elemental damage and trigger keywords: Solar burns over time and ignites at max stacks; Stasis slows, freezes and shatters for bonus damage; Void explodes and weakens on hit, heals on kill; Arc chains lightning and blinds, buffs on kill; Strand weakens enemy damage, suspends at max stacks, grants armor on kill.",
+  "modifier.tcdex.elemental.description": "Grants a random element (Solar/Arc/Void/Stasis/Strand/Sinkstar/Mistflow) when applied, locked forever. Attacks convert to elemental damage and trigger keywords: Solar burns over time and ignites at max stacks; Stasis slows, freezes and shatters for bonus damage; Void explodes and weakens on hit, heals on kill; Arc chains lightning and blinds, buffs on kill; Strand weakens enemy damage, suspends at max stacks, grants armor on kill.",
   "modifier.tcdex.elemental.element.arc": "Arc",
   "modifier.tcdex.elemental.element.prism": "Prism",
   "modifier.tcdex.elemental.element.solar": "Solar",
@@ -89,5 +89,9 @@
   "modifier.tcdex.war_banner": "War Banner",
   "modifier.tcdex.war_banner.description": "Kills raise the War Banner: each kill adds a stack (max 4, 8s refreshed on kill). While the banner stands, nearby players (8 blocks, including yourself) deal +8% damage per stack and heal 0.5 per second per stack.",
   "modifier.tcdex.war_banner.flavor": "Raise the banner. Rally the Light.",
-  "tooltip.tcdex.light_level": "Light: %s"
+  "tooltip.tcdex.light_level": "Light: %s",
+  "modifier.tcdex.elemental.element.sinkstar": "Sinkstar",
+  "modifier.tcdex.elemental.element.mistflow": "Mistflow",
+  "death.attack.tcdex.sinkstar": "%1$s was crushed by a falling star",
+  "death.attack.tcdex.mistflow": "%1$s was scattered by the mistflow"
 }

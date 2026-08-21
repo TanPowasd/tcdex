@@ -10,6 +10,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.light.LightLevelManager;
+import org.tp.tcdex.reaction.ElementReactionEvents;
 import org.tp.tcdex.shield.PlayerShieldManager;
 import org.tp.tcdex.shield.PrismShieldConfig;
 
@@ -113,6 +114,12 @@ public class Config {
     private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_STRAND = BUILDER
             .comment("Relative weight for Strand shields on random assignment.")
             .defineInRange("shieldWeightStrand", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_SINKSTAR = BUILDER
+            .comment("Relative weight for Sinkstar shields on random assignment.")
+            .defineInRange("shieldWeightSinkstar", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_MISTFLOW = BUILDER
+            .comment("Relative weight for Mistflow shields on random assignment.")
+            .defineInRange("shieldWeightMistflow", 1, 0, 100);
     private static final ForgeConfigSpec.IntValue SHIELD_WEIGHT_PRISM = BUILDER
             .comment("Relative weight for Prism shields on random assignment. Default: 0 (Prism temporarily excluded from random shields).")
             .defineInRange("shieldWeightPrism", 0, 0, 100);
@@ -133,9 +140,23 @@ public class Config {
     private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_STRAND = BUILDER
             .comment("Relative weight for Strand when Elemental Charge rolls an element.")
             .defineInRange("elementWeightStrand", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_SINKSTAR = BUILDER
+            .comment("Relative weight for Sinkstar when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightSinkstar", 1, 0, 100);
+    private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_MISTFLOW = BUILDER
+            .comment("Relative weight for Mistflow when Elemental Charge rolls an element.")
+            .defineInRange("elementWeightMistflow", 1, 0, 100);
     private static final ForgeConfigSpec.IntValue ELEMENT_WEIGHT_PRISM = BUILDER
             .comment("Relative weight for Prism when Elemental Charge rolls an element. Default: 0 (players cannot get Prism damage via the Elemental Charge modifier).")
             .defineInRange("elementWeightPrism", 0, 0, 100);
+
+    // 元素反应系统
+    private static final ForgeConfigSpec.BooleanValue ELEMENT_REACTIONS_ENABLED = BUILDER
+            .comment("Enable TCDEX element reactions (Genshin-style aura/consume reactions).")
+            .define("elementReactionsEnabled", true);
+    private static final ForgeConfigSpec.DoubleValue AURA_DECAY_PER_TICK = BUILDER
+            .comment("Element aura decay per tick. Default 0.01 means 1.0 aura decays over ~5 seconds.")
+            .defineInRange("auraDecayPerTick", 0.01, 0.0, 1.0);
 
     // 世界光等场：出生点附近基线
     private static final ForgeConfigSpec.IntValue WORLD_BASE_LIGHT = BUILDER
@@ -170,6 +191,24 @@ public class Config {
     private static final ForgeConfigSpec.IntValue DISTANCE_GRADIENT_CAP = BUILDER
             .comment("Max monster light gained from distance to world spawn.")
             .defineInRange("distanceGradientCap", 45, 0, 1000);
+
+    // 地形（生物群系）光等：不同地形拥有不同的基础光等与距离光等增加速度
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> BIOME_BASE_LIGHTS = BUILDER
+            .comment(
+                    "Biome-specific base light level. When set, this replaces worldBaseLight for monsters spawning in that biome.",
+                    "Format: biome_registry_name=light",
+                    "Example: minecraft:desert=35, minecraft:swamp=28",
+                    "Works with biomes from any mod."
+            )
+            .defineListAllowEmpty("biomeBaseLights", List.of(), obj -> obj instanceof String);
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> BIOME_LIGHT_GRADIENTS = BUILDER
+            .comment(
+                    "Biome-specific light increase speed (monster light gained per 1000 blocks away from world spawn).",
+                    "Format: biome_registry_name=step",
+                    "Example: minecraft:desert=6, minecraft:plains=3",
+                    "If a biome is not listed here, the global distanceGradientStep is used."
+            )
+            .defineListAllowEmpty("biomeLightGradients", List.of(), obj -> obj instanceof String);
 
     // 时间压力：黑暗从世界边缘向中心蔓延
     private static final ForgeConfigSpec.IntValue DAYS_PER_TIME_BONUS = BUILDER
@@ -245,6 +284,9 @@ public class Config {
     private static final ForgeConfigSpec.BooleanValue MONSTER_SHIELD_HUD = BUILDER
             .comment("Show monster elemental shield HUD (name tag marker + crosshair shield bar).")
             .define("monsterShieldHud", true);
+    private static final ForgeConfigSpec.BooleanValue MONSTER_AURA_HUD = BUILDER
+            .comment("Show monster elemental aura HUD (name tag marker + crosshair aura list).")
+            .define("monsterAuraHud", true);
 
     // 元素怪物：怪物元素攻击（命中玩家时施加元素状态）
     private static final ForgeConfigSpec.BooleanValue MONSTER_ELEMENTAL_ATTACKS = BUILDER
@@ -313,6 +355,7 @@ public class Config {
     public static boolean playerShieldHud;
     public static boolean playerBuffHud;
     public static boolean monsterShieldHud;
+    public static boolean monsterAuraHud;
 
     private static boolean validateItemName(final Object obj) {
         if (!(obj instanceof final String itemName)) {
@@ -344,6 +387,7 @@ public class Config {
                 TIME_SPREAD_START.get(), TIME_SPREAD_END.get()
         );
         LightLevelManager.reloadDimensionConfig(DIMENSION_LIGHT_OFFSETS.get(), OTHER_DIMENSION_OFFSET.get());
+        LightLevelManager.reloadBiomeConfig(BIOME_BASE_LIGHTS.get(), BIOME_LIGHT_GRADIENTS.get());
         // 元素护盾黑名单与生成权重
         Map<ElementType, Integer> shieldWeights = new EnumMap<>(ElementType.class);
         shieldWeights.put(ElementType.SOLAR, SHIELD_WEIGHT_SOLAR.get());
@@ -351,6 +395,8 @@ public class Config {
         shieldWeights.put(ElementType.VOID, SHIELD_WEIGHT_VOID.get());
         shieldWeights.put(ElementType.STASIS, SHIELD_WEIGHT_STASIS.get());
         shieldWeights.put(ElementType.STRAND, SHIELD_WEIGHT_STRAND.get());
+        shieldWeights.put(ElementType.SINKSTAR, SHIELD_WEIGHT_SINKSTAR.get());
+        shieldWeights.put(ElementType.MISTFLOW, SHIELD_WEIGHT_MISTFLOW.get());
         shieldWeights.put(ElementType.PRISM, SHIELD_WEIGHT_PRISM.get());
         ElementManager.reloadShieldConfig(SHIELD_BLACKLIST.get(), shieldWeights);
         // 元素充能随机元素权重
@@ -360,11 +406,16 @@ public class Config {
         elementWeights.put(ElementType.VOID, ELEMENT_WEIGHT_VOID.get());
         elementWeights.put(ElementType.STASIS, ELEMENT_WEIGHT_STASIS.get());
         elementWeights.put(ElementType.STRAND, ELEMENT_WEIGHT_STRAND.get());
+        elementWeights.put(ElementType.SINKSTAR, ELEMENT_WEIGHT_SINKSTAR.get());
+        elementWeights.put(ElementType.MISTFLOW, ELEMENT_WEIGHT_MISTFLOW.get());
         elementWeights.put(ElementType.PRISM, ELEMENT_WEIGHT_PRISM.get());
         ElementManager.reloadElementWeights(elementWeights);
         ElementManager.reloadAttackConfig(MONSTER_ELEMENTAL_ATTACKS.get(), MONSTER_ELEMENTAL_ATTACK_CHANCE.get());
         // 元素抗性/弱点表
         ElementManager.reloadResistances(MONSTER_ELEMENT_RESISTANCES.get());
+        // 元素反应系统
+        ElementReactionEvents.setEnabled(ELEMENT_REACTIONS_ENABLED.get());
+        ElementManager.setAuraDecayPerTick((float) (double) AURA_DECAY_PER_TICK.get());
         // 棱镜盾参数（磨损效率/减免/回复）
         PrismShieldConfig.reload(
                 PRISM_SHIELD_MATCH_EFFICIENCY.get(), PRISM_SHIELD_ELEMENT_EFFICIENCY.get(),
@@ -378,6 +429,7 @@ public class Config {
         playerShieldHud = PLAYER_SHIELD_HUD.get();
         playerBuffHud = PLAYER_BUFF_HUD.get();
         monsterShieldHud = MONSTER_SHIELD_HUD.get();
+        monsterAuraHud = MONSTER_AURA_HUD.get();
         LightLevelManager.reloadDamageConfig(
                 DEALT_OVERLEVEL_STEP.get(), DEALT_OVERLEVEL_CAP.get(),
                 DEALT_UNDERLEVEL_STEP.get(), DEALT_UNDERLEVEL_MIN.get(),

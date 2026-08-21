@@ -43,6 +43,10 @@ public class ModDamageTypeProvider extends DatapackBuiltinEntriesProvider {
                         new DamageType("tcdex.stasis", DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, 0.1f));
                 bootstrap.register(ModDamageSources.STRAND_DAMAGE_TYPE,
                         new DamageType("tcdex.strand", DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, 0.1f));
+                bootstrap.register(ModDamageSources.SINKSTAR_DAMAGE_TYPE,
+                        new DamageType("tcdex.sinkstar", DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, 0.1f));
+                bootstrap.register(ModDamageSources.MISTFLOW_DAMAGE_TYPE,
+                        new DamageType("tcdex.mistflow", DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, 0.1f));
                 bootstrap.register(ModDamageSources.PRISM_DAMAGE_TYPE,
                         new DamageType("tcdex.prism", DamageScaling.WHEN_CAUSED_BY_LIVING_NON_PLAYER, 0.1f));
             });
