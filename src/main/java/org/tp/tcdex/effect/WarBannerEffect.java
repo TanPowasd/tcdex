@@ -11,7 +11,7 @@ import net.minecraft.world.effect.MobEffectCategory;
  *   <li><b>层数 = amplifier + 1</b>（击杀叠层，上限 4 层），每次击杀刷新 8 秒时长</li>
  *   <li>8 秒无击杀 → 效果到期，旗帜落地（层数清零）</li>
  *   <li>效果持有期间：附近玩家（8 格内，含自己）伤害 +8%/层，每秒治疗 0.5/层
- *       （联动逻辑见 {@link org.tp.tcdex.event.WarBannerEvents}）</li>
+ *       （联动逻辑见 {@link org.tp.tcdex.integration.tinkers.event.WarBannerEvents}）</li>
  * </ul></p>
  */
 public class WarBannerEffect extends MobEffect {

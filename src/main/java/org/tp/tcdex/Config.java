@@ -321,6 +321,16 @@ public class Config {
                     "minecraft:wither:void=0.5"
             ), obj -> obj instanceof String);
 
+    // 护盾破盾效率表（同元素/克制/反克制/其他 可配置）
+    private static final ForgeConfigSpec.ConfigValue<List<? extends String>> SHIELD_ELEMENT_EFFICIENCIES = BUILDER
+            .comment(
+                    "Shield break efficiency table. Format: shield_element:attack_element=multiplier",
+                    "attack_element can be an element id or 'kinetic'.",
+                    "Example: solar:solar=0.5, solar:stasis=3.0, solar:arc=1.0",
+                    "If not set, defaults are: same=0.5, counter=3.0, reverse=0.25, other=1.0."
+            )
+            .defineListAllowEmpty("shieldElementEfficiencies", List.of(), obj -> obj instanceof String);
+
     // 棱镜盾参数（凋零/末影龙 Boss 专属）
     private static final ForgeConfigSpec.DoubleValue PRISM_SHIELD_MATCH_EFFICIENCY = BUILDER
             .comment("Prism shield wear efficiency for Prism damage (matching). Default: 2.0.")
@@ -420,6 +430,8 @@ public class Config {
         ElementManager.reloadAttackConfig(MONSTER_ELEMENTAL_ATTACKS.get(), MONSTER_ELEMENTAL_ATTACK_CHANCE.get());
         // 元素抗性/弱点表
         ElementManager.reloadResistances(MONSTER_ELEMENT_RESISTANCES.get());
+        // 护盾破盾效率表（同/克/反克/其他）
+        ElementManager.reloadShieldEfficiencyTable(SHIELD_ELEMENT_EFFICIENCIES.get());
         // 元素反应系统
         ElementReactionEvents.setEnabled(ELEMENT_REACTIONS_ENABLED.get());
         ElementManager.setAuraDecayPerTick((float) (double) AURA_DECAY_PER_TICK.get());

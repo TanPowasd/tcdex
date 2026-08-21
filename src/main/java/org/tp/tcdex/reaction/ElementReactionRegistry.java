@@ -23,13 +23,10 @@ public final class ElementReactionRegistry {
     private ElementReactionRegistry() {
     }
 
-    /** 注册一条反应（自动双向注册：A+B 与 B+A 使用同一条反应） */
+    /** 注册一条反应（自动双向注册：A+B 与 B+A 使用同一条反应；Prism 也允许作为特殊反应参与） */
     public static void register(ElementReaction reaction) {
         if (reaction == null || reaction.getAuraElement() == null || reaction.getTriggerElement() == null) {
             return;
-        }
-        if (reaction.getAuraElement() == ElementType.PRISM || reaction.getTriggerElement() == ElementType.PRISM) {
-            return; // Prism 不参与常规七元素反应
         }
         registerDirection(reaction);
         // 双向：冰影+缚丝 与 缚丝+冰影 都能触发同一条霜缚
@@ -46,9 +43,9 @@ public final class ElementReactionRegistry {
                 .put(reaction.getTriggerElement(), reaction);
     }
 
-    /** 查找目标已有元素 aura 被 trigger 触发时的反应；没有返回 null */
+    /** 查找目标已有元素 aura 被 trigger 触发时的反应；没有返回 null（Prism 也允许） */
     public static ElementReaction find(ElementType aura, ElementType trigger) {
-        if (aura == null || trigger == null || aura == ElementType.PRISM || trigger == ElementType.PRISM) {
+        if (aura == null || trigger == null) {
             return null;
         }
         Map<ElementType, ElementReaction> map = REACTIONS.get(aura);
@@ -126,5 +123,40 @@ public final class ElementReactionRegistry {
         // 雷晶护壁：沉星 + 电弧 -> 攻击者获得临时吸收盾
         register(new ElementReaction(ElementType.SINKSTAR, ElementType.ARC, ReactionType.SHIELD,
                 1.0f, 60, 200, 0.0f, 2.0f));
+        // 沉星结晶扩展：沉星 + 缚丝 / 岚流 / 潮汐 -> 护盾
+        register(new ElementReaction(ElementType.SINKSTAR, ElementType.STRAND, ReactionType.SHIELD,
+                1.0f, 60, 200, 0.0f, 2.0f));
+        register(new ElementReaction(ElementType.SINKSTAR, ElementType.MISTFLOW, ReactionType.SHIELD,
+                1.0f, 60, 200, 0.0f, 2.0f));
+        register(new ElementReaction(ElementType.SINKSTAR, ElementType.TIDE, ReactionType.SHIELD,
+                1.0f, 60, 200, 0.0f, 2.0f));
+
+        // ===== 潮汐（环境伪元素）反应 =====
+        // 蒸腾：潮汐 + 烈日 -> 伤害
+        register(new ElementReaction(ElementType.TIDE, ElementType.SOLAR, ReactionType.DAMAGE,
+                1.0f, 40, 0, 2.0f, 8.0f));
+        // 导电：潮汐 + 电弧 -> 伤害
+        register(new ElementReaction(ElementType.TIDE, ElementType.ARC, ReactionType.DAMAGE,
+                1.0f, 40, 0, 2.0f, 8.0f));
+        // 冻结：潮汐 + 冰影 -> 控制
+        register(new ElementReaction(ElementType.TIDE, ElementType.STASIS, ReactionType.CONTROL,
+                1.0f, 40, 60, 0.0f, 0.0f));
+
+        // ===== 棱镜特殊反应（月/棱镜进阶反应） =====
+        // 棱镜感电：棱镜 + 电弧 -> 强化雷电伤害
+        register(new ElementReaction(ElementType.PRISM, ElementType.ARC, ReactionType.DAMAGE,
+                1.0f, 40, 0, 3.0f, 8.0f, 14.0f));
+        // 棱镜结晶：棱镜 + 沉星 -> 强化结晶护盾
+        register(new ElementReaction(ElementType.PRISM, ElementType.SINKSTAR, ReactionType.SHIELD,
+                1.0f, 60, 300, 0.0f, 3.0f, 0.0f));
+        // 棱镜烈阳：棱镜 + 烈日 -> 强化火焰爆发
+        register(new ElementReaction(ElementType.PRISM, ElementType.SOLAR, ReactionType.DAMAGE,
+                1.0f, 50, 0, 3.0f, 10.0f, 16.0f));
+        // 棱镜霜封：棱镜 + 冰影 -> 强化冻结控制
+        register(new ElementReaction(ElementType.PRISM, ElementType.STASIS, ReactionType.CONTROL,
+                1.0f, 50, 120, 0.0f, 0.0f, 0.0f));
+        // 棱镜缠绕：棱镜 + 缚丝 -> 强化束缚控制
+        register(new ElementReaction(ElementType.PRISM, ElementType.STRAND, ReactionType.CONTROL,
+                1.0f, 50, 120, 0.0f, 0.0f, 0.0f));
     }
 }

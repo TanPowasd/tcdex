@@ -15,11 +15,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.tp.tcdex.artifact.ArtifactManager;
 import org.tp.tcdex.element.ElementType;
-import org.tp.tcdex.modifier.elemental.ElementalModifier;
-import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
+import org.tp.tcdex.element.ElementManager;
+import org.tp.tcdex.transcendence.TranscendenceManager;
 
 import java.util.List;
 
@@ -103,31 +101,21 @@ public final class ElementEnergyManager {
 
     /** 获取玩家当前手持武器对应的元素；无法判定时返回最后使用的元素 */
     public static ElementType getCurrentElement(Player player) {
-        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
-            if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
-                continue;
-            }
-            ToolStack tool = ToolStack.from(stack);
-            if (tool.isBroken()) {
-                continue;
-            }
-            for (ModifierEntry entry : tool.getModifierList()) {
-                if (entry.getModifier() instanceof PrismResonanceModifier) {
-                    return ElementType.PRISM;
+        if (TinkersBridgeHolder.isAvailable()) {
+            var bridge = TinkersBridgeHolder.get();
+            for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+                ElementType element = bridge.getWeaponElement(stack);
+                if (element != null) {
+                    return element;
                 }
             }
-            ElementType element = ElementalModifier.parseElement(
-                    tool.getPersistentData().getString(ElementalModifier.ELEMENT_KEY));
-            if (element != null) {
-                return element;
-            }
         }
-        return ElementalModifier.parseElement(player.getPersistentData().getString(LAST_ELEMENT_TAG));
+        return ElementManager.parseElement(player.getPersistentData().getString(LAST_ELEMENT_TAG));
     }
 
     // ===== 爆发 =====
 
-    /** 尝试释放元素爆发；成功返回 true */
+    /** 尝试释放元素爆发；若超越双槽也满则释放棱镜融合爆发 */
     public static boolean tryActivateBurst(Player player, long now) {
         if (getEnergy(player) < MAX_ENERGY) {
             return false;
@@ -136,9 +124,32 @@ public final class ElementEnergyManager {
         if (element == null) {
             return false;
         }
+        // 超越 + 元素能量双满：棱镜融合爆发
+        if (TranscendenceManager.isReady(player)) {
+            TranscendenceManager.tryActivate(player, now);
+            setEnergy(player, 0.0f);
+            applyPrismaticBurst(player);
+            return true;
+        }
         setEnergy(player, 0.0f);
         applyBurst(player, element);
         return true;
+    }
+
+    /** 棱镜融合爆发：全元素 AOE + 强控制 */
+    private static void applyPrismaticBurst(Player player) {
+        Level level = player.level();
+        float radius = 8.0f;
+        List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class,
+                player.getBoundingBox().inflate(radius),
+                e -> e != player && e.isAlive() && !(e instanceof Player));
+        for (LivingEntity target : targets) {
+            target.hurt(player.damageSources().indirectMagic(player, null), 20.0f);
+            target.setSecondsOnFire(3);
+            target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 100, 4, false, true));
+            target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 100, 2, false, true));
+        }
+        playBurst(player, ParticleTypes.FIREWORK, SoundEvents.DRAGON_FIREBALL_EXPLODE, 60);
     }
 
     /** 应用七元素爆发效果 */

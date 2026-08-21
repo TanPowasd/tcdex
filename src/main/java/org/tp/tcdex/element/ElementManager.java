@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.api.IElementShieldProvider;
+import org.tp.tcdex.modifier.elemental.IElementalEntity;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
@@ -22,6 +23,114 @@ public final class ElementManager {
 
     /** 怪物元素抗性/弱点表（entity id → 元素 → 倍率；配置 monsterElementResistances，运行时重载） */
     private static final Map<String, Map<ElementType, Float>> RESISTANCES = new HashMap<>();
+
+    /** Add 包注册的额外元素抗性/弱点（优先级低于配置文件，便于玩家配置覆盖） */
+    private static final Map<String, Map<ElementType, Float>> RESISTANCE_OVERRIDES = new HashMap<>();
+
+    /** 元素环形克制表：每个元素克制下一个元素 */
+    private static final ElementType[] ELEMENT_CYCLE = {
+            ElementType.SOLAR,
+            ElementType.ARC,
+            ElementType.VOID,
+            ElementType.STASIS,
+            ElementType.STRAND,
+            ElementType.SINKSTAR,
+            ElementType.MISTFLOW
+    };
+
+    /** 获取某元素的“反面/克制”元素（环形表下一个） */
+    public static ElementType getCounterElement(ElementType element) {
+        for (int i = 0; i < ELEMENT_CYCLE.length; i++) {
+            if (ELEMENT_CYCLE[i] == element) {
+                return ELEMENT_CYCLE[(i + 1) % ELEMENT_CYCLE.length];
+            }
+        }
+        return null;
+    }
+
+    /** 判断 attack 是否为 shield 的反面/克制元素 */
+    public static boolean isCounterElement(ElementType shield, ElementType attack) {
+        ElementType counter = getCounterElement(shield);
+        return counter != null && counter == attack;
+    }
+
+    /** 护盾破盾效率表：shield元素id → attack元素id（或 kinetic）→ 倍率 */
+    private static final Map<String, Map<String, Float>> SHIELD_EFFICIENCY_TABLE = new HashMap<>();
+
+    /** 默认同元素破盾效率 */
+    private static final float DEFAULT_SAME_EFFICIENCY = 0.5f;
+    /** 默认克制元素破盾效率 */
+    private static final float DEFAULT_COUNTER_EFFICIENCY = 3.0f;
+    /** 默认反克制元素破盾效率（被该护盾克制的元素攻击时，护盾更强） */
+    private static final float DEFAULT_REVERSE_EFFICIENCY = 0.25f;
+    /** 默认其他元素/动能破盾效率 */
+    private static final float DEFAULT_NEUTRAL_EFFICIENCY = 1.0f;
+
+    /** 从配置重载护盾破盾效率表 */
+    public static void reloadShieldEfficiencyTable(List<? extends String> entries) {
+        SHIELD_EFFICIENCY_TABLE.clear();
+        if (entries == null) {
+            return;
+        }
+        for (String entry : entries) {
+            if (entry == null) {
+                continue;
+            }
+            String trimmed = entry.trim();
+            int eq = trimmed.lastIndexOf('=');
+            if (eq <= 0 || eq == trimmed.length() - 1) {
+                continue;
+            }
+            String pair = trimmed.substring(0, eq).trim();
+            String value = trimmed.substring(eq + 1).trim();
+            int colon = pair.indexOf(':');
+            if (colon <= 0 || colon == pair.length() - 1) {
+                continue;
+            }
+            String shieldId = pair.substring(0, colon).trim();
+            String attackId = pair.substring(colon + 1).trim();
+            try {
+                float multiplier = Float.parseFloat(value);
+                SHIELD_EFFICIENCY_TABLE.computeIfAbsent(shieldId, k -> new HashMap<>())
+                        .put(attackId, Math.max(0.0f, multiplier));
+            } catch (NumberFormatException ignored) {
+                // 忽略无法解析的行
+            }
+        }
+    }
+
+    /**
+     * 获取护盾破盾效率：
+     * 1. 配置表显式指定优先
+     * 2. 同元素 = 0.5（额外减免）
+     * 3. 克制元素 = 3.0（额外伤害）
+     * 4. 反克制元素 = 0.25（被自己克制的元素打，护盾更强）
+     * 5. 其他 = 1.0
+     */
+    public static float getShieldEfficiency(ElementType shield, @javax.annotation.Nullable ElementType attack) {
+        String shieldId = shield.getId();
+        String attackId = attack != null ? attack.getId() : "kinetic";
+        Map<String, Float> map = SHIELD_EFFICIENCY_TABLE.get(shieldId);
+        if (map != null) {
+            Float explicit = map.get(attackId);
+            if (explicit != null) {
+                return explicit;
+            }
+        }
+        if (attack == null) {
+            return DEFAULT_NEUTRAL_EFFICIENCY;
+        }
+        if (attack == shield) {
+            return DEFAULT_SAME_EFFICIENCY;
+        }
+        if (isCounterElement(shield, attack)) {
+            return DEFAULT_COUNTER_EFFICIENCY;
+        }
+        if (isCounterElement(attack, shield)) {
+            return DEFAULT_REVERSE_EFFICIENCY;
+        }
+        return DEFAULT_NEUTRAL_EFFICIENCY;
+    }
 
     /** 元素附着量自然衰减速度（每 tick 减少量；默认 0.01，约 5 秒从 1.0 衰减到 0） */
     private static float auraDecayPerTick = 0.01f;
@@ -80,7 +189,7 @@ public final class ElementManager {
 
     /** 按元素 id 解析（solar/arc/void/stasis/strand/prism/sinkstar/mistflow），无效返回 null */
     @javax.annotation.Nullable
-    private static ElementType parseElement(String id) {
+    public static ElementType parseElement(String id) {
         for (ElementType type : ElementType.values()) {
             if (type.getId().equals(id)) {
                 return type;
@@ -104,16 +213,16 @@ public final class ElementManager {
 
     static {
         for (ElementType type : ElementType.values()) {
-            SHIELD_WEIGHTS.put(type, type == ElementType.PRISM ? 0 : 1);
+            SHIELD_WEIGHTS.put(type, type == ElementType.PRISM || type == ElementType.TIDE ? 0 : 1);
         }
     }
 
-    /** 元素充能随机元素权重（默认各 1，0 = 不会随机到该元素；棱镜不可通过元素充能词条获得） */
+    /** 元素充能随机元素权重（默认各 1，0 = 不会随机到该元素；棱镜/潮汐不可通过元素充能获得） */
     private static final Map<ElementType, Integer> ELEMENT_WEIGHTS = new EnumMap<>(ElementType.class);
 
     static {
         for (ElementType type : ElementType.values()) {
-            ELEMENT_WEIGHTS.put(type, type == ElementType.PRISM ? 0 : 1);
+            ELEMENT_WEIGHTS.put(type, type == ElementType.PRISM || type == ElementType.TIDE ? 0 : 1);
         }
     }
 
@@ -146,7 +255,7 @@ public final class ElementManager {
         }
         for (ElementType type : ElementType.values()) {
             // 配置缺项时兜底：棱镜默认不参与随机盾
-            SHIELD_WEIGHTS.putIfAbsent(type, type == ElementType.PRISM ? 0 : 1);
+            SHIELD_WEIGHTS.putIfAbsent(type, type == ElementType.PRISM || type == ElementType.TIDE ? 0 : 1);
         }
     }
 
@@ -218,16 +327,34 @@ public final class ElementManager {
         return new EnumMap<>(SHIELD_WEIGHTS);
     }
 
-    /** 获取实体对某元素的伤害倍率 */
+    /** 获取实体对某元素的伤害倍率（包含动态元素适应） */
     public static float getResistance(LivingEntity entity, ElementType element) {
+        float resistance = 1.0f;
         ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
         if (key != null) {
-            Map<ElementType, Float> map = RESISTANCES.get(key.toString());
-            if (map != null) {
-                return map.getOrDefault(element, 1.0f);
+            Map<ElementType, Float> configMap = RESISTANCES.get(key.toString());
+            if (configMap != null && configMap.containsKey(element)) {
+                resistance = configMap.get(element);
+            } else {
+                Map<ElementType, Float> overrideMap = RESISTANCE_OVERRIDES.get(key.toString());
+                if (overrideMap != null) {
+                    resistance = overrideMap.getOrDefault(element, 1.0f);
+                }
             }
         }
-        return 1.0f;
+        if (entity instanceof IElementalEntity elemental) {
+            resistance *= (1.0f - elemental.getElementAdaptation(element));
+        }
+        return Math.max(0.05f, resistance);
+    }
+
+    /** Add 包注册额外元素抗性/弱点（entityId 如 "iceandfire:fire_dragon"） */
+    public static void registerResistance(String entityId, ElementType element, float multiplier) {
+        if (entityId == null || element == null) {
+            return;
+        }
+        RESISTANCE_OVERRIDES.computeIfAbsent(entityId, k -> new EnumMap<>(ElementType.class))
+                .put(element, Math.max(0.05f, multiplier));
     }
 
     /** 从配置重载元素充能随机权重 */
@@ -238,7 +365,7 @@ public final class ElementManager {
         }
         for (ElementType type : ElementType.values()) {
             // 配置缺项时兜底：棱镜默认不参与元素充能随机
-            ELEMENT_WEIGHTS.putIfAbsent(type, type == ElementType.PRISM ? 0 : 1);
+            ELEMENT_WEIGHTS.putIfAbsent(type, type == ElementType.PRISM || type == ElementType.TIDE ? 0 : 1);
         }
     }
 
@@ -260,6 +387,19 @@ public final class ElementManager {
         return weightedRoll(random, SHIELD_WEIGHTS);
     }
 
+    /** 按权重随机分配护盾元素，可额外翻倍指定元素的权重 */
+    public static ElementType rollShieldElement(net.minecraft.util.RandomSource random, @javax.annotation.Nullable ElementType boosted) {
+        if (boosted == null) {
+            return rollShieldElement(random);
+        }
+        Map<ElementType, Integer> weights = new EnumMap<>(SHIELD_WEIGHTS);
+        Integer weight = weights.get(boosted);
+        if (weight != null && weight > 0) {
+            weights.put(boosted, weight * 2);
+        }
+        return weightedRoll(random, weights);
+    }
+
     /** 通用加权随机 */
     private static ElementType weightedRoll(net.minecraft.util.RandomSource random, Map<ElementType, Integer> weights) {
         int total = 0;
@@ -270,7 +410,7 @@ public final class ElementManager {
             // 全 0 时退化为等概率，但 Prism 不参与随机分配
             java.util.List<ElementType> candidates = new ArrayList<>();
             for (ElementType type : ElementType.values()) {
-                if (type != ElementType.PRISM) {
+                if (type != ElementType.PRISM && type != ElementType.TIDE) {
                     candidates.add(type);
                 }
             }

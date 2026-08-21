@@ -21,11 +21,7 @@ import org.tp.tcdex.api.IDamageModifierProvider;
 import org.tp.tcdex.api.IEntityLightLevelProvider;
 import org.tp.tcdex.api.IItemLightLevelProvider;
 import org.tp.tcdex.artifact.ArtifactManager;
-import slimeknights.tconstruct.library.materials.definition.IMaterial;
-import slimeknights.tconstruct.library.materials.definition.MaterialVariant;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -359,12 +355,12 @@ public final class LightLevelManager {
 
     /** 判断物品是否为匠魂可改造工具/盔甲 */
     public static boolean isTinkersItem(ItemStack stack) {
-        return !stack.isEmpty() && stack.getItem() instanceof IModifiable;
+        return TinkersBridgeHolder.isAvailable() && TinkersBridgeHolder.get().isTinkersTool(stack);
     }
 
     /** 判断是否为已经初始化的匠魂工具/盔甲 */
     public static boolean isTinkersToolOrArmor(ItemStack stack) {
-        return isTinkersItem(stack) && ToolStack.isInitialized(stack);
+        return TinkersBridgeHolder.isAvailable() && TinkersBridgeHolder.get().isInitializedTool(stack);
     }
 
     /**
@@ -386,48 +382,26 @@ public final class LightLevelManager {
                 .containsKey(Attributes.ATTACK_DAMAGE);
     }
 
-    /**
-     * 计算匠魂物品的基础光等。
-     * 基础光等 = 10 + 材料阶级点数 + 强化等级点数。
-     */
+    /** 计算匠魂物品的基础光等（通过桥接层） */
     public static int getBaseLightLevel(ItemStack stack) {
         if (!isTinkersToolOrArmor(stack)) {
             return 0;
         }
-        ToolStack tool = ToolStack.from(stack);
-
-        int materialPoints = 0;
-        for (MaterialVariant variant : tool.getMaterials()) {
-            if (!variant.isUnknown()) {
-                IMaterial material = variant.get();
-                materialPoints += material.getTier() * MATERIAL_TIER_POINTS;
-            }
-        }
-
-        int modifierPoints = 0;
-        for (ModifierEntry entry : tool.getModifiers()) {
-            modifierPoints += entry.getLevel() * MODIFIER_LEVEL_POINTS;
-        }
-
-        return Math.max(BASE_LIGHT_MIN, BASE_LIGHT_CONSTANT + materialPoints + modifierPoints);
+        return TinkersBridgeHolder.get().getToolBaseLight(stack);
     }
 
-    /** 获取匠魂物品当前额外灌注光等 */
+    /** 获取匠魂物品当前额外灌注光等（通过桥接层） */
     public static int getInfusionLevel(ItemStack stack) {
         if (!isTinkersToolOrArmor(stack)) {
             return 0;
         }
-        return ToolStack.from(stack).getPersistentData().getInt(LIGHT_LEVEL_KEY);
+        return TinkersBridgeHolder.get().getToolInfusion(stack);
     }
 
     /** 获取物品最终光等 = 基础光等 + 灌注光等；若存在强制覆盖值则直接返回覆盖值；也支持附属 mod 注册的物品 */
     public static int getLightLevel(ItemStack stack) {
         if (isTinkersToolOrArmor(stack)) {
-            ToolStack tool = ToolStack.from(stack);
-            if (tool.getPersistentData().contains(LIGHT_LEVEL_OVERRIDE_KEY)) {
-                return tool.getPersistentData().getInt(LIGHT_LEVEL_OVERRIDE_KEY);
-            }
-            return getBaseLightLevel(stack) + getInfusionLevel(stack);
+            return (int) TinkersBridgeHolder.get().getToolLightLevel(stack);
         }
         for (IItemLightLevelProvider provider : ITEM_LIGHT_PROVIDERS) {
             if (provider.canProvide(stack)) {
@@ -444,9 +418,7 @@ public final class LightLevelManager {
     /** 强制将物品光等设置为指定值（匠魂写入覆盖值，自定义物品调用对应提供器） */
     public static void setLightLevel(ItemStack stack, int value) {
         if (isTinkersToolOrArmor(stack)) {
-            ToolStack tool = ToolStack.from(stack);
-            tool.getPersistentData().putInt(LIGHT_LEVEL_OVERRIDE_KEY, Math.max(1, value));
-            tool.updateStack(stack);
+            TinkersBridgeHolder.get().setToolLightLevel(stack, value);
             return;
         }
         for (IItemLightLevelProvider provider : ITEM_LIGHT_PROVIDERS) {
@@ -459,31 +431,21 @@ public final class LightLevelManager {
 
     /** 是否设置了强制光等覆盖值 */
     public static boolean hasLightLevelOverride(ItemStack stack) {
-        if (!isTinkersToolOrArmor(stack)) {
-            return false;
-        }
-        return ToolStack.from(stack).getPersistentData().contains(LIGHT_LEVEL_OVERRIDE_KEY);
+        return isTinkersToolOrArmor(stack) && TinkersBridgeHolder.get().hasToolLightOverride(stack);
     }
 
     /** 移除强制光等覆盖值，恢复为基础光等+灌注 */
     public static void removeLightLevelOverride(ItemStack stack) {
-        if (!isTinkersToolOrArmor(stack)) {
-            return;
+        if (isTinkersToolOrArmor(stack)) {
+            TinkersBridgeHolder.get().removeToolLightOverride(stack);
         }
-        ToolStack tool = ToolStack.from(stack);
-        tool.getPersistentData().remove(LIGHT_LEVEL_OVERRIDE_KEY);
-        tool.updateStack(stack);
     }
 
     /** 给匠魂物品增加灌注光等，并写回物品 NBT */
     public static void addInfusionLevel(ItemStack stack, int amount) {
-        if (!isTinkersToolOrArmor(stack)) {
-            return;
+        if (isTinkersToolOrArmor(stack)) {
+            TinkersBridgeHolder.get().addToolInfusion(stack, amount);
         }
-        ToolStack tool = ToolStack.from(stack);
-        int current = tool.getPersistentData().getInt(LIGHT_LEVEL_KEY);
-        tool.getPersistentData().putInt(LIGHT_LEVEL_KEY, Math.max(0, current + amount));
-        tool.updateStack(stack);
     }
 
     /** 计算玩家平均光等：统计已装备的匠魂/自定义装备 */

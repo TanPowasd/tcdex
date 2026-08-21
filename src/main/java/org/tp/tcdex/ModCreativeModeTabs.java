@@ -24,6 +24,8 @@ public class ModCreativeModeTabs {
                         pOutput.accept(ModItems.ARTIFACT_SANDS.get());
                         pOutput.accept(ModItems.ARTIFACT_GOBLET.get());
                         pOutput.accept(ModItems.ARTIFACT_CIRCLET.get());
+                        pOutput.accept(ModItems.ELEMENT_ENERGY_ORB.get());
+                        pOutput.accept(ModItems.LIGHT_ORB.get());
                     }).build());
 
     public static void registerCreativeModeTabs(IEventBus bus) {

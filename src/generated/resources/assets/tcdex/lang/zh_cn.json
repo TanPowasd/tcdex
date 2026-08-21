@@ -109,5 +109,8 @@
   "item.tcdex.artifact.slot.artifact_plume": "羽",
   "item.tcdex.artifact.slot.artifact_sands": "沙",
   "item.tcdex.artifact.slot.artifact_goblet": "杯",
-  "item.tcdex.artifact.slot.artifact_circlet": "冠"
+  "item.tcdex.artifact.slot.artifact_circlet": "冠",
+  "item.tcdex.element_energy_orb": "元素能量球",
+  "modifier.tcdex.elemental.element.tide": "潮汐",
+  "item.tcdex.light_orb": "光能微粒"
 }

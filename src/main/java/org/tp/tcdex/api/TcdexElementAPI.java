@@ -4,10 +4,6 @@ import net.minecraft.world.entity.LivingEntity;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.modifier.hook.ElementalAttackModifierHook;
-import org.tp.tcdex.modifier.hook.TcdexHooks;
-import slimeknights.tconstruct.library.module.ModuleHook;
-
 import java.util.Map;
 
 /**
@@ -92,6 +88,13 @@ public final class TcdexElementAPI {
         ElementManager.setAttackChance(chance);
     }
 
+    // ===== 元素抗性 / 弱点（Add 包注册，优先级低于配置文件） =====
+
+    /** 注册额外元素抗性/弱点：entityId 如 "iceandfire:fire_dragon" */
+    public static void registerResistance(String entityId, ElementType element, float multiplier) {
+        ElementManager.registerResistance(entityId, element, multiplier);
+    }
+
     // ===== 查询 =====
 
     /** 获取实体对某元素的伤害倍率（元素抗性/弱点） */
@@ -102,10 +105,5 @@ public final class TcdexElementAPI {
     /** 获取实体的元素状态数据（护盾/元素状态），附属 mod 可直接读写 */
     public static IElementalEntity getEntityElementData(LivingEntity entity) {
         return IElementalEntity.of(entity);
-    }
-
-    /** 获取元素攻击 hook（词条可在 registerHooks 中 addHook 并覆写调整元素伤害/护盾效率） */
-    public static ModuleHook<ElementalAttackModifierHook> getElementalAttackHook() {
-        return TcdexHooks.ELEMENTAL_ATTACK;
     }
 }

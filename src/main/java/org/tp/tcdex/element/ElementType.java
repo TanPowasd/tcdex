@@ -32,11 +32,13 @@ public enum ElementType {
     /** 缚丝：叠层（+25/击），期间攻击者伤害 -40%（Sever），满 100 悬挂（Suspend），击杀带标记目标获得织甲（Woven Mail） */
     STRAND("strand", ParticleTypes.ENCHANT, 25f, 100, 0f, 1.0f, 0xFF8FDB6A),
     /** 棱镜：标记型（+1），受击时折射（Refract）——本击 25% 伤害溅射周围；棱镜攻击对所有元素护盾按匹配效率破盾（折射所有光 = 匹配所有盾）。不参与常规七元素反应 */
-    PRISM("prism", ParticleTypes.FIREWORK, 1f, 100, 0f, 0f, 0xFFA78BFA),
+    PRISM("prism", ParticleTypes.FIREWORK, 1f, 100, 0f, 1.0f, 0xFFA78BFA),
     /** 沉星：重力与星核，定位压制/聚怪/护盾；参与元素反应 */
     SINKSTAR("sinkstar", ParticleTypes.END_ROD, 1f, 100, 0f, 1.0f, 0xFF5B7DB1),
     /** 岚流：风与气流，定位扩散/位移/控制；参与元素反应 */
-    MISTFLOW("mistflow", ParticleTypes.CLOUD, 1f, 100, 0f, 1.0f, 0xFFA8E6CF);
+    MISTFLOW("mistflow", ParticleTypes.CLOUD, 1f, 100, 0f, 1.0f, 0xFFA8E6CF),
+    /** 潮汐（伪元素）：仅用于环境附着/反应，不进入七元素、不参与元素充能/护盾随机 */
+    TIDE("tide", ParticleTypes.SPLASH, 1f, 100, 0f, 1.0f, 0xFF3B9EFF);
 
     private final String id;
     private final ParticleOptions particle;

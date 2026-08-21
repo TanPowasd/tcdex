@@ -61,6 +61,36 @@ public interface IElementalEntity {
     /** 记录某元素最近一次参与反应的世界时间 */
     void markReaction(ElementType type, long gameTime);
 
+    // ===== 破绽/失衡（原创战斗机制） =====
+
+    /** 获取当前失衡值（0~100） */
+    float getImbalance();
+
+    /** 增加失衡值（超过 100 自动进入破绽状态） */
+    void addImbalance(float amount);
+
+    /** 重置失衡值 */
+    void resetImbalance();
+
+    /** 获取剩余破绽 tick（0 = 未破绽） */
+    int getBreakTicks();
+
+    /** 设置破绽剩余 tick */
+    void setBreakTicks(int ticks);
+
+    /** 是否处于破绽状态 */
+    default boolean isBroken() {
+        return getBreakTicks() > 0;
+    }
+
+    // ===== 元素适应（怪物逐渐抵抗常用元素） =====
+
+    /** 获取某元素当前适应值（0~0.5，越高抗性越强） */
+    float getElementAdaptation(ElementType type);
+
+    /** 增加某元素适应值 */
+    void addElementAdaptation(ElementType type, float amount);
+
     // ===== 元素护盾（命运2 匹配元素破盾） =====
 
     /** 获取护盾元素（无护盾返回 null；首次访问懒加载初始化，查 ElementManager 护盾表） */
@@ -68,6 +98,12 @@ public interface IElementalEntity {
 
     /** 获取剩余护盾值（0 = 无护盾；首次访问懒加载） */
     float getShieldAmount();
+
+    /** 获取剩余护盾层数（元素使徒多层护盾） */
+    int getShieldLayers();
+
+    /** 设置剩余护盾层数 */
+    void setShieldLayers(int layers);
 
     /**
      * 护盾承受伤害：扣减护盾值（耗尽时清除护盾元素 = 永久破盾，等价于 {@code consumeShield(damage, true)}）。

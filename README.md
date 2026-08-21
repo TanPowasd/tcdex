@@ -1,8 +1,8 @@
 # TCDEX（原命2）
 
-**匠魂 3（TConstruct）原神 × 命运2 融合风格附属模组** — Forge 1.20.1
+**原神 × 命运2 融合风格模组（含 Tinkers Construct 软联动 Add 包）** — Forge 1.20.1
 
-本模组为匠魂工具/盔甲加入 **原神式元素反应** 与 **命运2 风格核心系统**：
+TCDEX 核心不强制依赖 Tinkers Construct；检测到 Tinkers 时自动启用匠魂词条、光等、元素武器等联动内容。在安装 Tinkers 时，本模组为匠魂工具/盔甲加入 **原神式元素反应** 与 **命运2 风格核心系统**：
 
 - **元素充能**：武器打上「元素充能」词条后随机获得一种元素（烈日/电弧/虚空/冰影/缚丝/沉星/岚流），永久固化，攻击伤害从动能转化为元素伤害
 - **元素反应**：原神式附着量/消耗模型，支持控制、伤害、增幅、护盾、扩散五类反应；与命运2 关键词共存
@@ -17,8 +17,60 @@
 
 ---
 
+## 0. 软依赖 / Add 包架构
+
+TCDEX 核心不强制依赖 Tinkers / 冰火 / 铁魔法；当前仅 Curios（圣遗物槽位）仍为强制依赖，后续可改软。所有外部 mod 联动均为 add 包：
+
+| 外部 mod | add 包 | 状态 |
+|---|---|---|
+| Tinkers Construct | `integration.tinkers` | 已迁移，`tconstruct` / `mantle` 为 `mandatory=false` |
+| Ice and Fire | `integration.iceandfire` | 可选 |
+| Iron's Spellbooks | `integration.irons_spellbooks` | 可选 |
+| JEI | `integration.jei` | 计划中 |
+| Curios | 圣遗物槽位 | 当前仍为 `mandatory=true`，后续可改软 |
+
+未安装对应 mod 时，对应 add 包不会初始化；Core 只通过 `ITinkersBridge` / `TinkersBridgeHolder` 与 Tinkers 交互，不直接引用 `slimeknights` 类。
+
+### 0.1 统一 Add 包注册 API
+
+TCDEX 提供一套多 mod 统一化工具，用于统一注册与管理外部联动 Add 包：
+
+- `ITcdexIntegration`：统一生命周期接口，包含 `shouldLoad()`、`init()`、`onCommonSetup()`、`onServerStarting()`、`onServerStopping()`
+- `TcdexIntegrationRegistry`：统一注册中心，可查询已注册 / 已活跃的 Add 包
+- `TcdexIntegrationBuilder`：流式 Builder，适合快速注册轻量联动
+
+```java
+TcdexIntegrationBuilder.builder("mymod")
+        .displayName("My Mod")
+        .shouldLoad(() -> ModList.get().isLoaded("mymod"))
+        .onInit(bus -> {
+            // 注册事件、桥接、词条等
+        })
+        .onCommonSetup(event -> {
+            // 跨 mod 初始化
+        })
+        .onServerStarting(event -> {
+            // 服务端启动
+        })
+        .register();
+```
+
+也可以直接实现 `ITcdexIntegration` 后通过 `TcdexIntegrationRegistry.register(...)` 注册。
+内置的 Tinkers / 冰火 / 铁魔法 Add 包都走同一套注册与生命周期管理。
+
+查询当前已加载的联动：
+
+```java
+List<ITcdexIntegration> active = TcdexIntegrationRegistry.getActive();
+boolean hasTinkers = TcdexIntegrationRegistry.isModIntegrated("tconstruct");
+```
+
+---
+
+
 ## 目录
 
+- [0. 软依赖 / Add 包架构](#0-软依赖--add-包架构)
 - [1. 作为依赖引入](#1-作为依赖引入)
 - [2. 元素系统 API](#2-元素系统-api)
 - [3. 光等系统 API](#3-光等系统-api)
@@ -30,13 +82,16 @@
 - [5. 实体元素状态接口 IElementalEntity](#5-实体元素状态接口-ielementalentity)
 - [6. 元素类型与关键词总览](#6-元素类型与关键词总览)
 - [7. 配置总览](#7-配置总览)
-- [8. 常见问题](#8-常见问题)
+- [8. 纹理生成器（流体 / 材料图标）](#8-纹理生成器流体--材料图标)
+- [9. 常见问题](#9-常见问题)
 
 ---
 
 ## 1. 作为依赖引入
 
-**build.gradle**（在匠魂依赖之后）：
+TCDEX 核心 API 不依赖 Tinkers Construct（当前 Curios 仍为 TCDEX 的强制依赖）。如果你的附属 mod **只使用 TCDEX 核心 API**，不需要在构建脚本里额外声明 Tinkers。
+
+**build.gradle**：
 
 ```groovy
 repositories {
@@ -46,9 +101,10 @@ repositories {
 
 dependencies {
     implementation fg.deobf("org.tp:tcdex:${tcdex_version}")  // 或具体版本，如 1.0.0
-    // TCDEX 依赖（传递依赖需自行声明）：
-    implementation fg.deobf("curse.maven:tinkers-construct-74072:7449219")
-    implementation fg.deobf("curse.maven:mantle-74924:7563777")
+
+    // 如果你要开发 Tinkers 词条 / 使用 integration.tinkers 下的类，才需要额外声明：
+    // implementation fg.deobf("curse.maven:tinkers-construct-74072:7449219")
+    // implementation fg.deobf("curse.maven:mantle-74924:7563777")
 }
 ```
 
@@ -59,6 +115,21 @@ dependencies {
 modId = "tcdex"
 mandatory = false
 versionRange = "[1.0.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+# 只有使用 Tinkers 词条 / Hook 时才需要，且同样为可选：
+[[dependencies.yourmodid]]
+modId = "tconstruct"
+mandatory = false
+versionRange = "[3.11.2.166,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.yourmodid]]
+modId = "mantle"
+mandatory = false
+versionRange = "[1.11.104,)"
 ordering = "NONE"
 side = "BOTH"
 ```
@@ -134,11 +205,15 @@ float overflow = data.consumeShield(damage);
 data.destroyShield();
 ```
 
-### 2.5 查询元素抗性
+### 2.5 查询 / 注册元素抗性
 
 ```java
 float resistance = TcdexElementAPI.getResistance(entity, ElementType.VOID);
 // 1.0 正常 / >1 弱点（受更多伤害） / <1 抗性
+
+// Add 包可注册额外抗性/弱点（优先级低于配置文件，玩家配置可覆盖）
+TcdexElementAPI.registerResistance("iceandfire:fire_dragon", ElementType.SOLAR, 0.3f);
+TcdexElementAPI.registerResistance("iceandfire:fire_dragon", ElementType.STASIS, 1.8f);
 ```
 
 ### 2.6 使用 TCDEX 元素伤害类型
@@ -192,16 +267,17 @@ ElementType attack = TcdexElementAPI.getMonsterAttackElement(entity);
 破盾后（盾值 0 期间）伤害正常打到血量；Boss 的**元素攻击保留**（攻击元素在分配时固化，不随护盾消失）。
 磨损效率、减免与回复参数全部可在配置中调整（`prismShield*` 系列）。
 
-### 2.9 其他 mod 软联动（不作为前置依赖）
+### 2.9 外部 mod 软联动（不作为前置依赖）
 
-与 JEI 相同的软依赖方式（mods.toml `mandatory = false`），未安装对应 mod 时自动跳过，零类引用零风险：
+所有外部 mod 联动均采用 add 包 + `mods.toml` `mandatory = false`，未安装对应 mod 时自动跳过，零类引用零风险：
 
-| Mod | 联动内容 |
-|---|---|
-| **冰与火之舞** `iceandfire` | 火龙 → 烈日盾/攻击；冰龙 → 冰影盾/攻击；闪电龙 → 电弧盾/攻击（护盾提供器注册，攻击元素同源自动生效） |
-| **铁魔法** `irons_spellbooks` | 法术命中元素化：火焰/寒冰/雷电/虚空类法术弹射物命中目标（玩家/生物）→ 施加对应元素状态（层数保守缩放），灼烧/冻结/Jolt/Weaken 等关键词自动联动 |
+| Mod | add 包 | 联动内容 |
+|---|---|---|
+| **匠魂 3** `tconstruct` | `integration.tinkers` | 元素充能 / 棱镜共鸣 / 五项之力词条、匠魂光等、武器催化、元素精通、全部 Tinkers Hook |
+| **冰与火之舞** `iceandfire` | `integration.iceandfire` | 更多冰火生物获得元素盾/攻击（龙、火灵、海蛇、九头蛇、幽灵等）；龙类等拥有元素抗性与弱点；龙息/龙爪等冰火伤害对任意目标触发元素反应、施加状态、参与元素护盾破盾，玩家被命中时获得元素能量 |
+| **铁魔法** `irons_spellbooks` | `integration.irons_spellbooks` | 法术命中元素化覆盖火/冰/雷/虚空/自然/风/重力/圣光等；任意目标都会施加元素状态并触发元素反应；元素法术参与元素护盾破盾；玩家施法命中时获得元素能量 |
 
-> 两者均未安装时：护盾提供器不注册、法术事件按实体注册名匹配自然不命中，不影响 TCDEX 本体任何功能。
+> 这些 mod 均未安装时：Tinkers 词条不注册、护盾提供器不注册、法术事件按实体注册名匹配自然不命中，不影响 TCDEX 本体任何功能。
 
 ---
 
@@ -250,10 +326,12 @@ TcdexAPI.registerDamageModifierProvider(new IDamageModifierProvider() {
 
 ## 4. 词条 Hook 开发
 
+> 注意：Tinkers 词条 / Hook / 工具类均已迁移到 `org.tp.tcdex.integration.tinkers` 包下（例如 `...modifier.base.TcdexBaseModifier`、`...modifier.hook.TcdexHooks`）。以下示例为简洁省略 import，实际开发时请使用新包名。
+
 ### 4.1 全能词条基类 TcdexBaseModifier
 
-`org.tp.tcdex.modifier.base.TcdexBaseModifier` —— 对标 sakuratinker `BaseModifier` 的**全能基类**：
-- 一次性 implements **匠魂 3.10 全部 61 个原生 hook** + TCDEX 自定义 `KILLING_HOOK`
+`org.tp.tcdex.integration.tinkers.modifier.base.TcdexBaseModifier` —— 对标 sakuratinker `BaseModifier` 的**全能基类**：
+- 一次性 implements **匠魂 3.11 全部 61 个原生 hook** + TCDEX 自定义 `KILLING_HOOK`
 - `registerHooks` 已全部注册，子类**无需写任何注册代码**
 - 所有 hook 方法委托为可覆写的 `modifierXxx()`（空实现/安全默认值）
 
@@ -313,7 +391,7 @@ modEventBus.addListener(MyModifier::registerModifier);
 
 ### 4.2 击杀 Hook（KILLING_HOOK）
 
-匠魂 3.10 **没有原生击杀 hook**，TCDEX 提供了自定义的（`TcdexHooks.KILLING_HOOK`，由 `TcdexHookEvents` 在 `LivingDeathEvent`(LOWEST) 派发，遍历攻击者双手工具）。
+匠魂 3.11 **没有原生击杀 hook**，TCDEX 提供了自定义的（`TcdexHooks.KILLING_HOOK`，由 `org.tp.tcdex.integration.tinkers.event.TcdexHookEvents` 在 `LivingDeathEvent`(LOWEST) 派发，遍历攻击者双手工具）。
 
 ```java
 public class ReaperModifier extends TcdexBaseModifier {
@@ -331,11 +409,11 @@ public class ReaperModifier extends TcdexBaseModifier {
 }
 ```
 
-> 不使用基类时，也可直接 `implements KillingHook`（接口默认方法 + `AllMerger` 合并器），并在 `registerHooks` 中 `addHook(this, TcdexHooks.KILLING_HOOK)`。
+> 不使用基类时，也可直接 `implements org.tp.tcdex.integration.tinkers.modifier.hook.KillingHook`（接口默认方法 + `AllMerger` 合并器），并在 `registerHooks` 中 `addHook(this, TcdexHooks.KILLING_HOOK)`。
 
 ### 4.3 元素攻击 Hook（ELEMENTAL_ATTACK）
 
-`TcdexHooks.ELEMENTAL_ATTACK`（`ElementalAttackModifierHook`）——工具上任意词条可调整**元素伤害**与**护盾破盾效率**，由 `ElementalDamageEvents` 在伤害转化/护盾结算时链式派发（AllMerger）：
+`TcdexHooks.ELEMENTAL_ATTACK`（`org.tp.tcdex.integration.tinkers.modifier.hook.ElementalAttackModifierHook`）——工具上任意词条可调整**元素伤害**与**护盾破盾效率**，由 `ElementalDamageEvents` 在伤害转化/护盾结算时链式派发（AllMerger）：
 
 ```java
 public class ElementalMasterModifier extends TcdexBaseModifier implements ElementalAttackModifierHook {
@@ -447,7 +525,7 @@ public class MyEvents {
 
 ### 4.6 词条互斥 API（ModifierExclusivity）
 
-匠魂 3.10 官方没有词条互斥 API，TCDEX 自实现了注册中心 `org.tp.tcdex.modifier.ModifierExclusivity`：
+匠魂 3.11 官方没有词条互斥 API，TCDEX 自实现了注册中心 `org.tp.tcdex.integration.tinkers.modifier.ModifierExclusivity`：
 
 ```java
 // 一对互斥（自动双向登记）
@@ -468,7 +546,7 @@ protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier
 
 ### 4.7 词条依赖判定（ModifierHelper）
 
-词条可声明**前置依赖**（"词条 A 需要词条 B"），由 `org.tp.tcdex.modifier.ModifierHelper` 提供判定：
+词条可声明**前置依赖**（"词条 A 需要词条 B"），由 `org.tp.tcdex.integration.tinkers.modifier.ModifierHelper` 提供判定：
 
 ```java
 // 判定工具是否带元素充能词条且固化为指定元素（示例：电弧增幅需要元素充能-电弧）
@@ -598,6 +676,7 @@ IElementalEntity data = IElementalEntity.of(entity);   // 直接强转，无需�
 | 沉星 SINKSTAR | `sinkstar` | 标记型（+1） | 参与元素反应：重力坍缩、沉霜镇压 |
 | 岚流 MISTFLOW | `mistflow` | 标记型（+1） | 参与元素反应：风暴锁链、岚蚀恐惧、岚流扩散 |
 | 棱镜 PRISM | `prism` | 标记型（+1） | 受击 Refract 折射：本击 25% 伤害溅射周围；棱镜攻击破任意元素盾（匹配效率 ×2，折射所有光）。**玩家无法通过元素充能词条获得（Boss 专属）**，不参与常规七元素反应 |
+| 潮汐 TIDE | `tide` | 伪元素（+1） | 仅用于环境附着/反应，不参与七元素、元素充能、护盾随机 |
 
 元素爆炸/连锁**均不伤害玩家**（命运2 语义）；`AllPermittedModifier` 超载除外（有意设计）。
 
@@ -719,6 +798,9 @@ item:prism_ingot,A78BFA,ingot
 
 **Q：TCDEX 未安装时我的 mod 会崩溃吗？**
 声明 `mandatory = false` 依赖 + `ModList.isLoaded("tcdex")` 保护即可。只引用 API 类但不在未加载时调用是安全的（类在 TCDEX jar 中，你的 jar 不打包它）。
+
+**Q：Tinkers Construct 未安装时 TCDEX 会崩溃吗？**
+不会。TCDEX 核心不引用任何 `slimeknights` 类；`tconstruct` / `mantle` 均为可选依赖。未安装时 Tinkers add 包不初始化，匠魂词条、光等、武器元素、Tinkers Hook 等功能自动禁用；元素反应、玩家护盾、光等、怪物护盾等核心功能仍正常工作。
 
 **Q：元素状态会存档吗？**
 不会——元素状态是运行时数据（战斗短时状态），随实体消失；护盾在实体生成时重新分配。

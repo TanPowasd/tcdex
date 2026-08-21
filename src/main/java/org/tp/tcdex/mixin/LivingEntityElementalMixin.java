@@ -56,6 +56,22 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     @Unique
     private int tcdex$scorchCounter;
 
+    /** 破绽/失衡：当前失衡值（0~100） */
+    @Unique
+    private float tcdex$imbalance;
+
+    /** 破绽/失衡：剩余破绽 tick */
+    @Unique
+    private int tcdex$breakTicks;
+
+    /** 破绽/失衡：失衡衰减计时 */
+    @Unique
+    private int tcdex$imbalanceDecay;
+
+    /** 元素适应：元素 → 适应值（0~0.5） */
+    @Unique
+    private final Map<ElementType, Float> tcdex$elementAdaptations = new EnumMap<>(ElementType.class);
+
     /** 元素护盾：护盾元素（null = 无护盾） */
     @Unique
     private ElementType tcdex$shieldElement;
@@ -63,6 +79,10 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     /** 元素护盾：剩余护盾值 */
     @Unique
     private float tcdex$shieldAmount;
+
+    /** 元素护盾：剩余护盾层数（元素使徒多层护盾） */
+    @Unique
+    private int tcdex$shieldLayers;
 
     /** 元素攻击元素：护盾分配时固化（与护盾同源），护盾被打破后保留（元素攻击不随护盾消失） */
     @Unique
@@ -175,6 +195,58 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
         }
     }
 
+    // ===== 破绽/失衡实现 =====
+
+    @Override
+    public float getImbalance() {
+        return tcdex$imbalance;
+    }
+
+    @Override
+    public void addImbalance(float amount) {
+        if (amount <= 0) {
+            return;
+        }
+        tcdex$imbalance = Math.min(100.0f, tcdex$imbalance + amount);
+        tcdex$imbalanceDecay = 0;
+        if (tcdex$imbalance >= 100.0f) {
+            tcdex$imbalance = 0.0f;
+            tcdex$breakTicks = 60;
+        }
+    }
+
+    @Override
+    public void resetImbalance() {
+        tcdex$imbalance = 0.0f;
+        tcdex$imbalanceDecay = 0;
+    }
+
+    @Override
+    public int getBreakTicks() {
+        return tcdex$breakTicks;
+    }
+
+    @Override
+    public void setBreakTicks(int ticks) {
+        tcdex$breakTicks = Math.max(0, ticks);
+    }
+
+    // ===== 元素适应实现 =====
+
+    @Override
+    public float getElementAdaptation(ElementType type) {
+        return tcdex$elementAdaptations.getOrDefault(type, 0.0f);
+    }
+
+    @Override
+    public void addElementAdaptation(ElementType type, float amount) {
+        if (amount <= 0 || type == null) {
+            return;
+        }
+        float current = tcdex$elementAdaptations.getOrDefault(type, 0.0f);
+        tcdex$elementAdaptations.put(type, Math.min(0.5f, current + amount));
+    }
+
     // ===== 元素护盾实现（懒加载：首次访问时查 ElementManager 护盾表） =====
 
     @Override
@@ -187,6 +259,16 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     public float getShieldAmount() {
         tcdex$initShield();
         return tcdex$shieldAmount;
+    }
+
+    @Override
+    public int getShieldLayers() {
+        return tcdex$shieldLayers;
+    }
+
+    @Override
+    public void setShieldLayers(int layers) {
+        tcdex$shieldLayers = Math.max(0, layers);
     }
 
     @Override
@@ -401,6 +483,42 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
                 }
                 if (TcdexDebug.isElementalEnabled()) {
                     LOGGER.info("[元素调试] {} 悬挂!", self.getDisplayName().getString());
+                }
+            }
+        }
+
+        // ===== 破绽/失衡（原创战斗机制） =====
+        if (tcdex$breakTicks > 0) {
+            tcdex$breakTicks--;
+            self.setDeltaMovement(0, 0, 0);
+            self.hurtMarked = true;
+            if (self instanceof net.minecraft.world.entity.Mob mob) {
+                mob.getNavigation().stop();
+                mob.setTarget(null);
+            }
+            self.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 10, 5, false, true));
+            self.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 10, 2, false, true));
+            if (tcdex$breakTicks <= 0) {
+                tcdex$imbalance = 0;
+            }
+        } else if (tcdex$imbalance > 0) {
+            tcdex$imbalanceDecay++;
+            if (tcdex$imbalanceDecay >= 100) {
+                tcdex$imbalance = Math.max(0.0f, tcdex$imbalance - 5.0f);
+                tcdex$imbalanceDecay = 0;
+            }
+        }
+
+        // ===== 元素适应衰减 =====
+        if (!tcdex$elementAdaptations.isEmpty() && level.getGameTime() % 20 == 0) {
+            Iterator<Map.Entry<ElementType, Float>> it = tcdex$elementAdaptations.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<ElementType, Float> entry = it.next();
+                float next = entry.getValue() - 0.01f;
+                if (next <= 0) {
+                    it.remove();
+                } else {
+                    entry.setValue(next);
                 }
             }
         }

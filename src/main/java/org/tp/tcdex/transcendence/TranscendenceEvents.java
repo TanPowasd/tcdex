@@ -13,11 +13,7 @@ import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.energy.ElementEnergyManager;
-import org.tp.tcdex.modifier.elemental.ElementalModifier;
-import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 
 import java.util.List;
 
@@ -76,24 +72,17 @@ public class TranscendenceEvents {
 
     /** 玩家手持工具的当前攻击元素（主手优先；null = 动能/五项之力） */
     private static ElementType heldAttackElement(Player player) {
-        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
-            if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
-                continue;
-            }
-            ToolStack tool = ToolStack.from(stack);
-            if (tool.isBroken()) {
-                continue;
-            }
-            for (ModifierEntry entry : tool.getModifierList()) {
-                if (entry.getModifier() instanceof PrismResonanceModifier) {
-                    return ElementType.PRISM;
+        if (TinkersBridgeHolder.isAvailable()) {
+            var bridge = TinkersBridgeHolder.get();
+            for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+                ElementType element = bridge.getWeaponElement(stack);
+                if (element != null) {
+                    return element;
+                }
+                if (bridge.isTinkersTool(stack)) {
+                    return null; // 动能武器（或五项之力）：光暗混合少量
                 }
             }
-            ElementType element = ElementalModifier.parseElement(tool.getPersistentData().getString(ElementalModifier.ELEMENT_KEY));
-            if (element != null) {
-                return element;
-            }
-            return null; // 动能武器（或五项之力）：光暗混合少量
         }
         return null;
     }

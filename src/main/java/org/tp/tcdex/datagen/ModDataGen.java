@@ -8,8 +8,10 @@ import net.minecraft.data.PackOutput;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import net.minecraftforge.data.event.GatherDataEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.integration.tinkers.datagen.ModRecipeProvider;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -42,7 +44,9 @@ public class ModDataGen {
         // ===== 服务端 =====
         gen.addProvider(event.includeServer(), new ModDamageTypeProvider(output, lookup));
         gen.addProvider(event.includeServer(), new ModDamageTypeTagsProvider(output, lookup));
-        gen.addProvider(event.includeServer(), new ModRecipeProvider(output));
+        if (ModList.get().isLoaded("tconstruct")) {
+            gen.addProvider(event.includeServer(), new ModRecipeProvider(output));
+        }
 
         // ===== 客户端 =====
         gen.addProvider(event.includeClient(), new ModLanguageProvider(output, "en_us"));

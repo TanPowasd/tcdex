@@ -32,6 +32,7 @@ public final class ModDamageSources {
     public static final ResourceKey<DamageType> STRAND_DAMAGE_TYPE = elementKey("strand");
     public static final ResourceKey<DamageType> SINKSTAR_DAMAGE_TYPE = elementKey("sinkstar");
     public static final ResourceKey<DamageType> MISTFLOW_DAMAGE_TYPE = elementKey("mistflow");
+    public static final ResourceKey<DamageType> TIDE_DAMAGE_TYPE = elementKey("tide");
     public static final ResourceKey<DamageType> PRISM_DAMAGE_TYPE = elementKey("prism");
 
     /**
@@ -67,7 +68,7 @@ public final class ModDamageSources {
         return source.is(SOLAR_DAMAGE_TYPE) || source.is(ARC_DAMAGE_TYPE) || source.is(VOID_DAMAGE_TYPE)
                 || source.is(STASIS_DAMAGE_TYPE) || source.is(STRAND_DAMAGE_TYPE)
                 || source.is(SINKSTAR_DAMAGE_TYPE) || source.is(MISTFLOW_DAMAGE_TYPE)
-                || source.is(PRISM_DAMAGE_TYPE);
+                || source.is(TIDE_DAMAGE_TYPE) || source.is(PRISM_DAMAGE_TYPE);
     }
 
     /** 判断伤害源是否为 TCDEX 自定义伤害类型（元素/动能/纯粹/灼烧 DoT） */
@@ -88,6 +89,7 @@ public final class ModDamageSources {
             case STRAND -> STRAND_DAMAGE_TYPE;
             case SINKSTAR -> SINKSTAR_DAMAGE_TYPE;
             case MISTFLOW -> MISTFLOW_DAMAGE_TYPE;
+            case TIDE -> TIDE_DAMAGE_TYPE;
             case PRISM -> PRISM_DAMAGE_TYPE;
         };
         return new DamageSource(
@@ -105,6 +107,7 @@ public final class ModDamageSources {
         if (source.is(STRAND_DAMAGE_TYPE)) return ElementType.STRAND;
         if (source.is(SINKSTAR_DAMAGE_TYPE)) return ElementType.SINKSTAR;
         if (source.is(MISTFLOW_DAMAGE_TYPE)) return ElementType.MISTFLOW;
+        if (source.is(TIDE_DAMAGE_TYPE)) return ElementType.TIDE;
         if (source.is(PRISM_DAMAGE_TYPE)) return ElementType.PRISM;
         return null;
     }

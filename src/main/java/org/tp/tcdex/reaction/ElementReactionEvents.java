@@ -18,15 +18,13 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.api.ITinkersBridge;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.mastery.ElementalMasteryManager;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.modifier.hook.TcdexHooks;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -39,7 +37,7 @@ import java.util.Map;
  * 若存在 A+B 反应且附着量足够、冷却结束，则消耗 A 的附着量并触发反应。
  * 与命运2 关键词共存，不替代现有 ElementalStateEvents。</p>
  *
- * <p>触发来源：TCDEX 元素伤害事件自动触发；铁魔法等软联动在 CompatEvents 中显式调用
+ * <p>触发来源：TCDEX 元素伤害事件自动触发；铁魔法等软联动在 IronSpellsEvents 中显式调用
  * {@link #tryTriggerReaction}；怪物元素攻击在 ElementalStateEvents 中显式调用。</p>
  */
 @Mod.EventBusSubscriber(modid = Tcdex.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
@@ -86,7 +84,7 @@ public class ElementReactionEvents {
      */
     public static void tryTriggerReaction(LivingEntity target, ElementType trigger, @Nullable LivingEntity source) {
         Level level = target.level();
-        if (!enabled || level.isClientSide || trigger == null || trigger == ElementType.PRISM) {
+        if (!enabled || level.isClientSide || trigger == null) {
             return;
         }
         IElementalEntity data = IElementalEntity.of(target);
@@ -123,7 +121,7 @@ public class ElementReactionEvents {
         for (Map.Entry<ElementType, ElementStatus> entry : data.getAllElementStates().entrySet()) {
             ElementType aura = entry.getKey();
             ElementStatus status = entry.getValue();
-            if (aura == trigger || aura == ElementType.PRISM || trigger == ElementType.PRISM || status.aura <= 0) {
+            if (aura == trigger || status.aura <= 0) {
                 continue;
             }
             ElementReaction reaction = ElementReactionRegistry.find(aura, trigger);
@@ -188,27 +186,27 @@ public class ElementReactionEvents {
         float intensity = reaction.getIntensity();
         float damage = reaction.getDamage();
         int cooldown = reaction.getCooldownTicks();
-        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
-            if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
-                continue;
-            }
-            ToolStack tool = ToolStack.from(stack);
-            if (tool.isBroken()) {
-                continue;
-            }
-            for (ModifierEntry entry : tool.getModifierList()) {
-                auraCost = entry.getHook(TcdexHooks.REACTION)
-                        .modifyReactionAuraCost(tool, entry, reaction, auraCost);
-                duration = entry.getHook(TcdexHooks.REACTION)
-                        .modifyReactionDuration(tool, entry, reaction, duration);
-                radius = entry.getHook(TcdexHooks.REACTION)
-                        .modifyReactionRadius(tool, entry, reaction, radius);
-                intensity = entry.getHook(TcdexHooks.REACTION)
-                        .modifyReactionIntensity(tool, entry, reaction, intensity);
-                damage = entry.getHook(TcdexHooks.REACTION)
-                        .modifyReactionDamage(tool, entry, reaction, damage);
-                cooldown = entry.getHook(TcdexHooks.REACTION)
-                        .modifyReactionCooldown(tool, entry, reaction, cooldown);
+        if (TinkersBridgeHolder.isAvailable()) {
+            ITinkersBridge bridge = TinkersBridgeHolder.get();
+            for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+                if (!bridge.isUsableTinkersTool(stack)) {
+                    continue;
+                }
+                auraCost = bridge.modifyReactionAuraCost(stack, reaction, auraCost);
+                duration = bridge.modifyReactionDuration(stack, reaction, duration);
+                radius = bridge.modifyReactionRadius(stack, reaction, radius);
+                intensity = bridge.modifyReactionIntensity(stack, reaction, intensity);
+                damage = bridge.modifyReactionDamage(stack, reaction, damage);
+                cooldown = bridge.modifyReactionCooldown(stack, reaction, cooldown);
+
+                // 武器催化：每级提升反应伤害/持续时间/范围，降低冷却
+                int catalystLevel = bridge.getCatalystLevel(stack);
+                if (catalystLevel > 0) {
+                    duration *= 1.0f + catalystLevel * 0.05f;
+                    radius += catalystLevel * 0.5f;
+                    damage *= 1.0f + catalystLevel * 0.10f;
+                    cooldown -= catalystLevel * 2;
+                }
             }
         }
         // 元素精通全局属性：统一增强反应伤害/持续时间/范围，降低冷却/附着消耗
@@ -232,17 +230,13 @@ public class ElementReactionEvents {
         if (!(source instanceof Player player)) {
             return;
         }
+        if (!TinkersBridgeHolder.isAvailable()) {
+            return;
+        }
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
         for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
-            if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
-                continue;
-            }
-            ToolStack tool = ToolStack.from(stack);
-            if (tool.isBroken()) {
-                continue;
-            }
-            for (ModifierEntry entry : tool.getModifierList()) {
-                entry.getHook(TcdexHooks.REACTION)
-                        .onReactionTriggered(tool, entry, target, reaction, source, reaction.getIntensity());
+            if (bridge.isUsableTinkersTool(stack)) {
+                bridge.onReactionTriggered(stack, target, reaction, source, reaction.getIntensity());
             }
         }
     }

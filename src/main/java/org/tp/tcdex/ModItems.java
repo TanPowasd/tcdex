@@ -21,6 +21,14 @@ public class ModItems {
     public static final RegistryObject<Item> GUARDIAN_EMBLEM =
             ITEMS.register("guardian_emblem", () -> new Item(new Item.Properties()));
 
+    /** 光能微粒（怪物掉落，拾取后同时充能超越和元素能量） */
+    public static final RegistryObject<Item> LIGHT_ORB =
+            ITEMS.register("light_orb", () -> new Item(new Item.Properties()));
+
+    /** 元素能量球（怪物掉落，拾取后充能） */
+    public static final RegistryObject<Item> ELEMENT_ENERGY_ORB =
+            ITEMS.register("element_energy_orb", () -> new Item(new Item.Properties()));
+
     // ===== 原神圣遗物 =====
     public static final RegistryObject<ArtifactItem> ARTIFACT_FLOWER =
             ITEMS.register("artifact_flower", () -> new ArtifactItem(ArtifactSlot.FLOWER));

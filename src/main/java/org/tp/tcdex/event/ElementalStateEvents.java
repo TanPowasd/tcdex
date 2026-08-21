@@ -24,22 +24,22 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.slf4j.Logger;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.api.ITinkersBridge;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.energy.ElementEnergyManager;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.reaction.ElementReactionEvents;
 import org.tp.tcdex.shield.PrismShieldConfig;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import javax.annotation.Nullable;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 元素状态受击联动（命运2 关键词结算）。
@@ -52,7 +52,7 @@ import java.util.Locale;
  *   <li>棱镜 PRISM：目标受击 → Refract 折射（本击 25% 溅射周围）</li>
  * </ul>
  *
- * <p>关键词结算数值可通过 {@link TcdexHooks#ELEMENTAL_KEYWORD} 由工具词条链式调整
+ * <p>关键词结算数值可通过 Tinkers 词条桥接的 ELEMENTAL_KEYWORD 由工具词条链式调整
  * （倍率/伤害/半径），派发对象 = 事件中持有匠魂工具的玩家
  * （攻击者为玩家用攻击者的武器；Sever 反向结算用被攻击玩家的武器）。</p>
  */
@@ -88,9 +88,33 @@ public class ElementalStateEvents {
     /** 棱镜折射溅射半径 */
     private static final float REFRACT_RADIUS = 2.0f;
 
+    /** 统计周围 radius 格内数量最多的元素怪物元素；没有则返回 null */
+    @Nullable
+    private static ElementType getDominantNearbyElement(LivingEntity self, double radius) {
+        Map<ElementType, Integer> counts = new EnumMap<>(ElementType.class);
+        Level level = self.level();
+        for (LivingEntity other : level.getEntitiesOfClass(LivingEntity.class,
+                self.getBoundingBox().inflate(radius),
+                e -> e != self && e.isAlive() && !(e instanceof Player) && ElementManager.isMonster(e))) {
+            ElementType element = IElementalEntity.of(other).getShieldElement();
+            if (element != null && element != ElementType.PRISM && element != ElementType.TIDE) {
+                counts.merge(element, 1, Integer::sum);
+            }
+        }
+        ElementType best = null;
+        int bestCount = 0;
+        for (Map.Entry<ElementType, Integer> entry : counts.entrySet()) {
+            if (entry.getValue() > bestCount) {
+                best = entry.getKey();
+                bestCount = entry.getValue();
+            }
+        }
+        return best;
+    }
+
     /**
      * 怪物生成时分配元素护盾。
-     * 分配链：黑名单（绝对无盾）→ 附属 mod 提供器 → 加权随机（无静态表指定）。
+     * 分配链：黑名单（绝对无盾）→ 附属 mod 提供器 → 加权随机（周围 16 格最多元素权重翻倍）。
      */
     @SubscribeEvent
     public static void onEntityJoinLevel(EntityJoinLevelEvent event) {
@@ -104,11 +128,17 @@ public class ElementalStateEvents {
         if (!ElementManager.isShieldBlacklisted(living)) {
             element = ElementManager.getProviderShieldElement(living);
             if (element == null) {
-                element = ElementManager.rollShieldElement(living.getRandom());
+                // 周围 16 格内最多的元素怪物的元素，其生成权重翻倍
+                ElementType dominant = getDominantNearbyElement(living, 16.0);
+                element = ElementManager.rollShieldElement(living.getRandom(), dominant);
             }
         }
         if (element != null) {
             IElementalEntity.of(living).setShield(element, living.getMaxHealth() * SHIELD_HEALTH_PERCENT);
+            // 元素使徒：10% 概率拥有多层护盾
+            if (living.getRandom().nextFloat() < 0.10f) {
+                IElementalEntity.of(living).setShieldLayers(2 + living.getRandom().nextInt(2));
+            }
             if (TcdexDebug.isElementalEnabled()) {
                 LOGGER.info("[元素调试] {} 生成, 分配护盾: {} ({}点)", living.getType().getDescription().getString(),
                         element.getId(), living.getMaxHealth() * SHIELD_HEALTH_PERCENT);
@@ -171,7 +201,7 @@ public class ElementalStateEvents {
         // 虚空 Volatile：受击 → 爆炸（目标自身吃一半，周围吃全额）
         if (targetData.getElementStacks(ElementType.VOID) > 0) {
             targetData.clearElementState(ElementType.VOID);
-            ToolStack tool = findEventTool(sourceEntity, target);
+            ItemStack tool = findEventTool(sourceEntity, target);
             float resistance = ElementManager.getResistance(target, ElementType.VOID);
             float percent = dispatchDamage(tool, ElementType.VOID, VOLATILE_HEALTH_PERCENT);
             float radius = dispatchRadius(tool, ElementType.VOID, VOLATILE_RADIUS);
@@ -186,7 +216,7 @@ public class ElementalStateEvents {
         // 电弧 Jolt：受击 → 连锁闪电
         if (targetData.getElementStacks(ElementType.ARC) > 0) {
             targetData.clearElementState(ElementType.ARC);
-            ToolStack tool = findEventTool(sourceEntity, target);
+            ItemStack tool = findEventTool(sourceEntity, target);
             float damage = dispatchDamage(tool, ElementType.ARC, JOLT_DAMAGE);
             float radius = dispatchRadius(tool, ElementType.ARC, JOLT_RADIUS);
             joltChain(target, damage, radius);
@@ -198,7 +228,7 @@ public class ElementalStateEvents {
         // 棱镜 Refract：受击 → 本击部分伤害折射溅射周围（不含玩家），清除标记
         if (targetData.getElementStacks(ElementType.PRISM) > 0) {
             targetData.clearElementState(ElementType.PRISM);
-            ToolStack tool = findEventTool(sourceEntity, target);
+            ItemStack tool = findEventTool(sourceEntity, target);
             float ratio = dispatchDamage(tool, ElementType.PRISM, REFRACT_SPLASH_RATIO);
             float radius = dispatchRadius(tool, ElementType.PRISM, REFRACT_RADIUS);
             float splash = event.getAmount() * ratio;
@@ -219,7 +249,7 @@ public class ElementalStateEvents {
      * 都不是（怪物互殴等）→ null（不派发，用默认值）。
      */
     @Nullable
-    private static ToolStack findEventTool(Entity sourceEntity, LivingEntity target) {
+    private static ItemStack findEventTool(Entity sourceEntity, LivingEntity target) {
         Player player = null;
         if (sourceEntity instanceof Player p) {
             player = p;
@@ -233,52 +263,41 @@ public class ElementalStateEvents {
 
     /** 玩家主手/副手第一个可用匠魂工具（主手优先） */
     @Nullable
-    private static ToolStack heldTool(Player player) {
+    private static ItemStack heldTool(Player player) {
+        if (!TinkersBridgeHolder.isAvailable()) {
+            return null;
+        }
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
         for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
-            if (!stack.isEmpty() && stack.getItem() instanceof IModifiable) {
-                ToolStack tool = ToolStack.from(stack);
-                if (!tool.isBroken()) {
-                    return tool;
-                }
+            if (bridge.isUsableTinkersTool(stack)) {
+                return stack;
             }
         }
         return null;
     }
 
     /** 关键词倍率派发：工具上所有词条链式调整 */
-    private static float dispatchMultiplier(@Nullable ToolStack tool, ElementType keyword, float value) {
-        if (tool == null) {
+    private static float dispatchMultiplier(@Nullable ItemStack tool, ElementType keyword, float value) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return value;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            value = entry.getHook(TcdexHooks.ELEMENTAL_KEYWORD)
-                    .modifyKeywordMultiplier(tool, entry, keyword, value);
-        }
-        return value;
+        return TinkersBridgeHolder.get().modifyKeywordMultiplier(tool, keyword, value);
     }
 
     /** 关键词伤害派发：工具上所有词条链式调整 */
-    private static float dispatchDamage(@Nullable ToolStack tool, ElementType keyword, float value) {
-        if (tool == null) {
+    private static float dispatchDamage(@Nullable ItemStack tool, ElementType keyword, float value) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return value;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            value = entry.getHook(TcdexHooks.ELEMENTAL_KEYWORD)
-                    .modifyKeywordDamage(tool, entry, keyword, value);
-        }
-        return value;
+        return TinkersBridgeHolder.get().modifyKeywordDamage(tool, keyword, value);
     }
 
     /** 关键词半径派发：工具上所有词条链式调整 */
-    private static float dispatchRadius(@Nullable ToolStack tool, ElementType keyword, float value) {
-        if (tool == null) {
+    private static float dispatchRadius(@Nullable ItemStack tool, ElementType keyword, float value) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return value;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            value = entry.getHook(TcdexHooks.ELEMENTAL_KEYWORD)
-                    .modifyKeywordRadius(tool, entry, keyword, value);
-        }
-        return value;
+        return TinkersBridgeHolder.get().modifyKeywordRadius(tool, keyword, value);
     }
 
     /**

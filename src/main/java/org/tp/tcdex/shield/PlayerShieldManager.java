@@ -4,10 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.tp.tcdex.artifact.ArtifactManager;
-import org.tp.tcdex.modifier.hook.TcdexHooks;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -151,45 +148,40 @@ public final class PlayerShieldManager {
 
     // ===== PLAYER_SHIELD hook 派发 =====
 
-    /** 玩家护盾吸收量调整：遍历玩家全部匠魂装备/手持工具词条（链式） */
+    /** 玩家护盾吸收量调整：通过 Tinkers 桥接层派发 */
     private static float dispatchModifyAbsorbed(Player player, float damageAmount, float absorbed) {
-        for (ToolStack tool : getModifiableTools(player)) {
-            for (ModifierEntry entry : tool.getModifierList()) {
-                absorbed = entry.getHook(TcdexHooks.PLAYER_SHIELD)
-                        .modifyAbsorbed(tool, entry, player, damageAmount, absorbed);
-            }
+        if (TinkersBridgeHolder.isAvailable()) {
+            return TinkersBridgeHolder.get().modifyAbsorbed(player, damageAmount, absorbed);
         }
         return absorbed;
     }
 
-    /** 玩家护盾回复速率调整：遍历玩家全部匠魂装备/手持工具词条（链式） */
+    /** 玩家护盾回复速率调整：通过 Tinkers 桥接层派发 */
     private static float dispatchModifyRegenRate(Player player, float rate) {
-        for (ToolStack tool : getModifiableTools(player)) {
-            for (ModifierEntry entry : tool.getModifierList()) {
-                rate = entry.getHook(TcdexHooks.PLAYER_SHIELD)
-                        .modifyRegenRate(tool, entry, player, rate);
-            }
+        if (TinkersBridgeHolder.isAvailable()) {
+            return TinkersBridgeHolder.get().modifyRegenRate(player, rate);
         }
         return rate;
     }
 
     /** 玩家全部匠魂装备/手持工具（护甲 4 槽 + 主手 + 副手，跳过非匠魂/损坏） */
-    public static List<ToolStack> getModifiableTools(Player player) {
-        List<ToolStack> tools = new ArrayList<>();
-        for (ItemStack stack : player.getArmorSlots()) {
-            addModifiableTool(tools, stack);
+    public static List<ItemStack> getModifiableTools(Player player) {
+        List<ItemStack> tools = new ArrayList<>();
+        if (!TinkersBridgeHolder.isAvailable()) {
+            return tools;
         }
-        addModifiableTool(tools, player.getMainHandItem());
-        addModifiableTool(tools, player.getOffhandItem());
-        return tools;
-    }
-
-    private static void addModifiableTool(List<ToolStack> tools, ItemStack stack) {
-        if (!stack.isEmpty() && stack.getItem() instanceof IModifiable) {
-            ToolStack tool = ToolStack.from(stack);
-            if (!tool.isBroken()) {
-                tools.add(tool);
+        var bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(
+                player.getMainHandItem(),
+                player.getOffhandItem(),
+                player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD),
+                player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST),
+                player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.LEGS),
+                player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.FEET))) {
+            if (bridge.isTinkersTool(stack)) {
+                tools.add(stack);
             }
         }
+        return tools;
     }
 }

@@ -16,6 +16,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -28,22 +29,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
-import org.tp.tcdex.compat.TcdexCompat;
 import org.tp.tcdex.effect.TcdexEffects;
-import org.tp.tcdex.modifier.ModifierExclusivity;
-import org.tp.tcdex.modifier.elemental.ElementalModifier;
-import org.tp.tcdex.modifier.elemental.FiveForcesModifier;
-import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
-import org.tp.tcdex.modifier.melee.ArcAmplifierModifier;
-import org.tp.tcdex.modifier.melee.BurningFistsModifier;
-import org.tp.tcdex.modifier.melee.BurstBarrierModifier;
-import org.tp.tcdex.modifier.melee.CombatEchoModifier;
-import org.tp.tcdex.modifier.melee.EagerEdgeModifier;
-import org.tp.tcdex.modifier.melee.KineticSiphonModifier;
-import org.tp.tcdex.modifier.melee.KineticTremorsModifier;
-import org.tp.tcdex.modifier.melee.SynthoModifier;
-import org.tp.tcdex.modifier.special.AllPermittedModifier;
-import org.tp.tcdex.modifier.special.ElementalMasteryModifier;
 import org.tp.tcdex.network.PacketHandler;
 
 // The value here should match an entry in the META-INF/mods.toml file
@@ -68,27 +54,8 @@ public class Tcdex {
             org.tp.tcdex.energy.ElementBurstKeybind.register();
         }
 
-        // 其他 mod 软联动（冰与火之舞 / 铁魔法，不作为前置依赖）
-        TcdexCompat.init();
-
-        // 注册词条互斥关系（元素充能 ↔ 棱镜共鸣）
-        ModifierExclusivity.registerAll();
-
-        // 注册自定义匠魂 Modifier
-        modEventBus.addListener(EagerEdgeModifier::registerModifier);
-        modEventBus.addListener(AllPermittedModifier::registerModifier);
-        modEventBus.addListener(CombatEchoModifier::registerModifier);
-        modEventBus.addListener(ElementalModifier::registerModifier);
-        modEventBus.addListener(PrismResonanceModifier::registerModifier);
-        modEventBus.addListener(FiveForcesModifier::registerModifier);
-        modEventBus.addListener(SynthoModifier::registerModifier);
-        modEventBus.addListener(BurningFistsModifier::registerModifier);
-        modEventBus.addListener(ArcAmplifierModifier::registerModifier);
-        modEventBus.addListener(BurstBarrierModifier::registerModifier);
-        modEventBus.addListener(KineticTremorsModifier::registerModifier);
-        modEventBus.addListener(KineticSiphonModifier::registerModifier);
-        modEventBus.addListener(org.tp.tcdex.modifier.special.WarBannerModifier::registerModifier);
-        modEventBus.addListener(ElementalMasteryModifier::registerModifier);
+        // 所有外部 mod 联动 add 包（Tinkers / 冰火 / 铁魔法 / JEI 等）
+        org.tp.tcdex.integration.IntegrationManager.init(modEventBus);
 
         // 注册自定义药水效果（吞噬等）
         TcdexEffects.register(modEventBus);
@@ -117,6 +84,8 @@ public class Tcdex {
         LOGGER.info(Config.magicNumberIntroduction + Config.magicNumber);
 
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
+
+        org.tp.tcdex.integration.IntegrationManager.fireCommonSetup(event);
     }
 
     // Add the example block item to the building blocks tab
@@ -129,6 +98,12 @@ public class Tcdex {
     public void onServerStarting(ServerStartingEvent event) {
         // Do something when the server starts
         LOGGER.info("HELLO from server starting");
+        org.tp.tcdex.integration.IntegrationManager.fireServerStarting(event);
+    }
+
+    @SubscribeEvent
+    public void onServerStopping(ServerStoppingEvent event) {
+        org.tp.tcdex.integration.IntegrationManager.fireServerStopping(event);
     }
 
     // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent

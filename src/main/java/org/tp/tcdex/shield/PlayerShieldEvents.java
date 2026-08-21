@@ -1,7 +1,6 @@
 package org.tp.tcdex.shield;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.Entity;
@@ -15,16 +14,12 @@ import net.minecraftforge.network.PacketDistributor;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.energy.ElementEnergyManager;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.network.PacketHandler;
 import org.tp.tcdex.network.PlayerStateSyncPacket;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -86,18 +81,10 @@ public class PlayerShieldEvents {
      * @return 调整后的溢出伤害（&lt;=0 = 本击被完全格挡，事件取消）
      */
     private static float dispatchShieldBreak(Player player, DamageSource source, float overflow) {
-        List<ToolStack> tools = PlayerShieldManager.getModifiableTools(player);
-        for (ToolStack tool : tools) {
-            for (ModifierEntry entry : tool.getModifierList()) {
-                overflow = entry.getHook(TcdexHooks.PLAYER_SHIELD_BREAK)
-                        .modifyBreakOverflow(tool, entry, player, source, overflow);
-            }
-        }
-        for (ToolStack tool : tools) {
-            for (ModifierEntry entry : tool.getModifierList()) {
-                entry.getHook(TcdexHooks.PLAYER_SHIELD_BREAK)
-                        .onShieldBreak(tool, entry, player, source, overflow);
-            }
+        if (TinkersBridgeHolder.isAvailable()) {
+            var bridge = TinkersBridgeHolder.get();
+            overflow = bridge.modifyBreakOverflow(player, source, overflow);
+            bridge.onPlayerShieldBreak(player, source, overflow);
         }
         return overflow;
     }
@@ -149,11 +136,11 @@ public class PlayerShieldEvents {
             return true;
         }
         ItemStack mainHand = player.getMainHandItem();
-        if (!mainHand.isEmpty() && mainHand.getItem() instanceof IModifiable) {
-            slimeknights.tconstruct.library.tools.nbt.ModDataNBT toolData = ToolStack.from(mainHand).getPersistentData();
-            if (!toolData.getString(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_mode")).isEmpty()
-                    || toolData.getInt(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_sin_timer")) > 0
-                    || toolData.getInt(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_combo")) > 0) {
+        if (TinkersBridgeHolder.isAvailable() && TinkersBridgeHolder.get().isTinkersTool(mainHand)) {
+            var bridge = TinkersBridgeHolder.get();
+            if (!bridge.getApMode(mainHand).isEmpty()
+                    || bridge.getApSin(mainHand) > 0
+                    || bridge.getApCombo(mainHand) > 0) {
                 return true;
             }
         }
@@ -175,17 +162,17 @@ public class PlayerShieldEvents {
         int apSin = 0;
         int apCombo = 0;
         ItemStack mainHand = player.getMainHandItem();
-        if (!mainHand.isEmpty() && mainHand.getItem() instanceof IModifiable) {
-            slimeknights.tconstruct.library.tools.nbt.ModDataNBT toolData = ToolStack.from(mainHand).getPersistentData();
-            String mode = toolData.getString(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_mode"));
+        if (TinkersBridgeHolder.isAvailable() && TinkersBridgeHolder.get().isTinkersTool(mainHand)) {
+            var bridge = TinkersBridgeHolder.get();
+            String mode = bridge.getApMode(mainHand);
             if ("yun".equals(mode)) {
                 apMode = 2;
             } else if ("xu".equals(mode)) {
                 apMode = 1;
             }
-            apForbidden = toolData.getFloat(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_forbidden"));
-            apSin = toolData.getInt(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_sin_timer"));
-            apCombo = toolData.getInt(ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "ap_combo"));
+            apForbidden = bridge.getApForbidden(mainHand);
+            apSin = bridge.getApSin(mainHand);
+            apCombo = bridge.getApCombo(mainHand);
         }
 
         // 吞噬 buff（剩余 tick）

@@ -109,5 +109,8 @@
   "item.tcdex.artifact.slot.artifact_plume": "Plume",
   "item.tcdex.artifact.slot.artifact_sands": "Sands",
   "item.tcdex.artifact.slot.artifact_goblet": "Goblet",
-  "item.tcdex.artifact.slot.artifact_circlet": "Circlet"
+  "item.tcdex.artifact.slot.artifact_circlet": "Circlet",
+  "item.tcdex.element_energy_orb": "Element Energy Orb",
+  "modifier.tcdex.elemental.element.tide": "Tide",
+  "item.tcdex.light_orb": "Light Orb"
 }

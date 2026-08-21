@@ -40,6 +40,8 @@ public class ModLanguageProvider extends LanguageProvider {
         add("item.tcdex.artifact_sands", "Artifact Sands");
         add("item.tcdex.artifact_goblet", "Artifact Goblet");
         add("item.tcdex.artifact_circlet", "Artifact Circlet");
+        add("item.tcdex.element_energy_orb", "Element Energy Orb");
+        add("item.tcdex.light_orb", "Light Orb");
         add("item.tcdex.artifact.slot", "Slot: %s");
         add("item.tcdex.artifact.slot.artifact_flower", "Flower");
         add("item.tcdex.artifact.slot.artifact_plume", "Plume");
@@ -60,6 +62,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.element.prism", "Prism");
         add("modifier.tcdex.elemental.element.sinkstar", "Sinkstar");
         add("modifier.tcdex.elemental.element.mistflow", "Mistflow");
+        add("modifier.tcdex.elemental.element.tide", "Tide");
         add("modifier.tcdex.elemental.tooltip.element", "Element: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "Element: uncharged (assigned when kept in inventory)");
 
@@ -174,6 +177,8 @@ public class ModLanguageProvider extends LanguageProvider {
         add("item.tcdex.artifact_sands", "圣遗物·沙");
         add("item.tcdex.artifact_goblet", "圣遗物·杯");
         add("item.tcdex.artifact_circlet", "圣遗物·冠");
+        add("item.tcdex.element_energy_orb", "元素能量球");
+        add("item.tcdex.light_orb", "光能微粒");
         add("item.tcdex.artifact.slot", "部位: %s");
         add("item.tcdex.artifact.slot.artifact_flower", "花");
         add("item.tcdex.artifact.slot.artifact_plume", "羽");
@@ -194,6 +199,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.element.prism", "棱镜");
         add("modifier.tcdex.elemental.element.sinkstar", "沉星");
         add("modifier.tcdex.elemental.element.mistflow", "岚流");
+        add("modifier.tcdex.elemental.element.tide", "潮汐");
         add("modifier.tcdex.elemental.tooltip.element", "元素: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "元素: 未充能（收入物品栏后确定）");
 

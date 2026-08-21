@@ -4,10 +4,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.tp.tcdex.artifact.ArtifactManager;
-import org.tp.tcdex.modifier.special.ElementalMasteryModifier;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,12 +44,10 @@ public final class ElementalMasteryManager {
     /** 获取玩家当前总元素精通 */
     public static int getMastery(Player player) {
         int mastery = player.getPersistentData().getInt(MASTERY_TAG);
-        for (ItemStack stack : allModifiableStacks(player)) {
-            ToolStack tool = ToolStack.from(stack);
-            for (ModifierEntry entry : tool.getModifierList()) {
-                if (entry.getModifier() instanceof ElementalMasteryModifier) {
-                    mastery += MASTERY_PER_LEVEL * entry.getLevel();
-                }
+        if (TinkersBridgeHolder.isAvailable()) {
+            var bridge = TinkersBridgeHolder.get();
+            for (ItemStack stack : allModifiableStacks(player)) {
+                mastery += bridge.getToolElementalMastery(stack);
             }
         }
         // 圣遗物提供的元素精通
@@ -103,6 +98,10 @@ public final class ElementalMasteryManager {
     /** 获取玩家所有已装备/手持的可用匠魂工具 */
     private static List<ItemStack> allModifiableStacks(Player player) {
         List<ItemStack> stacks = new ArrayList<>();
+        if (!TinkersBridgeHolder.isAvailable()) {
+            return stacks;
+        }
+        var bridge = TinkersBridgeHolder.get();
         for (ItemStack stack : List.of(
                 player.getMainHandItem(),
                 player.getOffhandItem(),
@@ -110,11 +109,8 @@ public final class ElementalMasteryManager {
                 player.getItemBySlot(EquipmentSlot.CHEST),
                 player.getItemBySlot(EquipmentSlot.LEGS),
                 player.getItemBySlot(EquipmentSlot.FEET))) {
-            if (!stack.isEmpty() && stack.getItem() instanceof IModifiable) {
-                ToolStack tool = ToolStack.from(stack);
-                if (!tool.isBroken()) {
-                    stacks.add(stack);
-                }
+            if (bridge.isTinkersTool(stack)) {
+                stacks.add(stack);
             }
         }
         return stacks;

@@ -20,17 +20,12 @@ import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.artifact.ArtifactManager;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
+import org.tp.tcdex.echo.ElementalEchoManager;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
-import org.tp.tcdex.modifier.elemental.ElementalModifier;
-import org.tp.tcdex.modifier.elemental.FiveForcesModifier;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.modifier.elemental.PrismResonanceModifier;
-import org.tp.tcdex.modifier.hook.TcdexHooks;
 import org.tp.tcdex.shield.PrismShieldConfig;
-import slimeknights.tconstruct.library.modifiers.ModifierEntry;
-import slimeknights.tconstruct.library.tools.item.IModifiable;
-import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import java.util.List;
 import java.util.Locale;
@@ -56,10 +51,8 @@ import javax.annotation.Nullable;
 @Mod.EventBusSubscriber(modid = Tcdex.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class ElementalDamageEvents {
 
-    /** 匹配元素破盾效率 */
+    /** 棱镜匹配元素破盾效率（特殊） */
     private static final float MATCH_EFFICIENCY = 2.0f;
-    /** 不匹配/动能破盾效率 */
-    private static final float MISMATCH_EFFICIENCY = 0.5f;
     /** 破盾爆炸：目标最大生命 × 10% */
     private static final float BREAK_HEALTH_PERCENT = 0.1f;
     /** 破盾爆炸半径 */
@@ -96,35 +89,46 @@ public class ElementalDamageEvents {
         // 玩家手持匠魂工具上的棱镜共鸣/元素充能/五项之力词条（主手优先；取第一个生效；null = 动能武器）
         // 棱镜共鸣固定棱镜伤害（专属来源，与元素充能互斥；若经命令强加两者，棱镜共鸣优先）
         // 五项之力每次攻击随机元素（与元素充能互斥，权重遵循配置；命中施加对应元素状态）
-        ToolStack tool = null;
+        ItemStack toolStack = null;
         ElementType element = null;
         boolean fiveForces = false;
-        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
-            ToolStack candidate = asTool(stack);
-            if (candidate == null) {
-                continue;
+        if (TinkersBridgeHolder.isAvailable()) {
+            var bridge = TinkersBridgeHolder.get();
+            for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+                if (!bridge.isUsableTinkersTool(stack)) {
+                    continue;
+                }
+                if (bridge.hasModifier(stack, "prism_resonance")) {
+                    toolStack = stack;
+                    element = ElementType.PRISM;
+                    break;
+                }
+                if (bridge.hasModifier(stack, "elemental")) {
+                    toolStack = stack;
+                    element = bridge.getOrInitializeWeaponElement(stack);
+                    break;
+                }
+                if (bridge.hasModifier(stack, "five_forces")) {
+                    toolStack = stack;
+                    element = ElementManager.rollElement(player.level().random);
+                    fiveForces = true;
+                    break;
+                }
+                if (toolStack == null) {
+                    toolStack = stack;
+                }
             }
-            if (findModifier(candidate, PrismResonanceModifier.class) != null) {
-                tool = candidate;
-                element = ElementType.PRISM;
-                break;
-            }
-            ElementalModifier elemental = findModifier(candidate, ElementalModifier.class);
-            if (elemental != null) {
-                tool = candidate;
-                element = elemental.getElement(candidate);
-                candidate.updateStack(stack); // 固化写回
-                break;
-            }
-            if (findModifier(candidate, FiveForcesModifier.class) != null) {
-                tool = candidate;
-                element = ElementManager.rollElement(player.level().random); // 每次攻击随机
-                fiveForces = true;
-                break;
-            }
-            if (tool == null) {
-                tool = candidate;
-            }
+        }
+
+        // 武器催化：元素攻击积累催化进度
+        if (toolStack != null && element != null && TinkersBridgeHolder.isAvailable()) {
+            TinkersBridgeHolder.get().addCatalystProgress(toolStack, 1);
+        }
+
+        // 元素残响：先引爆附近旧残响，再留下本次元素残响
+        if (element != null) {
+            ElementalEchoManager.detonateNear(target.level(), target.blockPosition(), player);
+            ElementalEchoManager.addEcho(target.level(), target.blockPosition(), element, 100);
         }
 
         // ===== 元素护盾结算（优先于伤害类型转化） =====
@@ -133,10 +137,10 @@ public class ElementalDamageEvents {
             // 棱镜盾（Boss 专属，吸收型）：伤害被盾完全吸收，破盾前打不到血量；
             // 磨损效率 棱镜 ×2 / 其他元素 ×0.5 / 动能 ×0.1
             if (targetData.getShieldElement() == ElementType.PRISM) {
-                handlePrismShield(event, target, targetData, player, tool, element);
+                handlePrismShield(event, target, targetData, player, toolStack, element);
                 return;
             }
-            handleShield(event, target, targetData, player, tool, element);
+            handleShield(event, target, targetData, player, toolStack, element);
             return;
         }
 
@@ -147,16 +151,16 @@ public class ElementalDamageEvents {
             resistance = ElementManager.getResistance(target, element);
             amount *= resistance;
             // 元素攻击 hook 联动：工具上词条可调整元素伤害
-            amount = dispatchElementalDamage(tool, element, amount);
+            amount = dispatchElementalDamage(toolStack, element, amount);
             // 圣遗物元素伤害加成
             amount *= 1.0f + ArtifactManager.getTotalElementDamageBonus(player);
             // 五项之力：命中施加本次 roll 到的元素状态（与伤害元素同源一致，走 ELEMENTAL_STATE_APPLY hook）
-            if (fiveForces) {
-                FiveForcesModifier.applyHitState(tool, player, target, element);
+            if (fiveForces && TinkersBridgeHolder.isAvailable()) {
+                TinkersBridgeHolder.get().applyFiveForcesHitState(toolStack, player, target, element);
             }
         } else {
             // 动能攻击 hook 联动：动能武器词条可调整动能伤害（目标参数开放：看目标是否带盾/带标记）
-            amount = dispatchKineticDamage(tool, target, amount);
+            amount = dispatchKineticDamage(toolStack, target, amount);
         }
         event.setCanceled(true);
         target.invulnerableTime = 0;
@@ -174,11 +178,16 @@ public class ElementalDamageEvents {
 
     /** 护盾结算：按匹配效率扣盾（可被元素攻击 hook 调整），打穿则破盾爆炸 + 溢出伤害回灌 */
     private static void handleShield(LivingHurtEvent event, LivingEntity target, IElementalEntity targetData,
-                                     Player player, ToolStack tool, ElementType attackElement) {
+                                     Player player, ItemStack tool, ElementType attackElement) {
         ElementType shieldElement = targetData.getShieldElement();
-        // 棱镜折射所有光 = 匹配所有盾：棱镜攻击对任意元素护盾都按匹配效率（×2）
-        float efficiency = (attackElement == shieldElement || attackElement == ElementType.PRISM)
-                ? MATCH_EFFICIENCY : MISMATCH_EFFICIENCY;
+        // 棱镜攻击特殊：对所有元素护盾按匹配效率（×2）
+        float efficiency;
+        if (attackElement == ElementType.PRISM) {
+            efficiency = MATCH_EFFICIENCY;
+        } else {
+            // 使用可配置的克制/反克制倍率表
+            efficiency = ElementManager.getShieldEfficiency(shieldElement, attackElement);
+        }
         // 破盾效率 hook 联动：元素攻击走 ELEMENTAL_ATTACK，动能攻击走 KINETIC_ATTACK
         efficiency = attackElement == null
                 ? dispatchKineticShieldEfficiency(tool, shieldElement, efficiency)
@@ -205,6 +214,12 @@ public class ElementalDamageEvents {
             shieldBreak(target, shieldElement, breakDamage);
             // 溢出伤害按原效率折算回真实值，以攻击类型结算
             target.hurt(attackSource(player, attackElement), overflow / efficiency);
+            // 元素使徒：护盾层数 > 0 时，破碎后立即生成下一层随机元素盾
+            if (targetData.getShieldLayers() > 0) {
+                targetData.setShieldLayers(targetData.getShieldLayers() - 1);
+                ElementType nextShield = ElementManager.rollShieldElement(target.getRandom());
+                targetData.setShield(nextShield, target.getMaxHealth() * 0.5f);
+            }
             if (TcdexDebug.isElementalEnabled()) {
                 player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
                         "[元素调试] 破盾! 溢出伤害: %.2f | 目标获得 %s 状态",
@@ -232,7 +247,7 @@ public class ElementalDamageEvents {
      * 元素攻击保留（分配时固化，与护盾状态无关）。
      */
     private static void handlePrismShield(LivingHurtEvent event, LivingEntity target, IElementalEntity targetData,
-                                          Player player, ToolStack tool, ElementType attackElement) {
+                                          Player player, ItemStack tool, ElementType attackElement) {
         // 磨损效率（配置化）：棱镜匹配；动能；其他元素
         float efficiency;
         if (attackElement == ElementType.PRISM) {
@@ -285,68 +300,50 @@ public class ElementalDamageEvents {
     }
 
     /** 元素攻击 hook 派发：工具上所有词条链式调整元素伤害 */
-    private static float dispatchElementalDamage(ToolStack tool, ElementType element, float amount) {
-        if (tool == null) {
+    private static float dispatchElementalDamage(ItemStack tool, ElementType element, float amount) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return amount;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            amount = entry.getHook(TcdexHooks.ELEMENTAL_ATTACK).modifyElementalDamage(tool, entry, element, amount);
-        }
-        return amount;
+        return TinkersBridgeHolder.get().modifyElementalDamage(tool, element, amount);
     }
 
     /** 元素攻击 hook 派发：工具上所有词条链式调整护盾破盾效率 */
-    private static float dispatchShieldEfficiency(ToolStack tool, ElementType shieldElement, float efficiency) {
-        if (tool == null) {
+    private static float dispatchShieldEfficiency(ItemStack tool, ElementType shieldElement, float efficiency) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return efficiency;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            efficiency = entry.getHook(TcdexHooks.ELEMENTAL_ATTACK).modifyShieldEfficiency(tool, entry, shieldElement, efficiency);
-        }
-        return efficiency;
+        return TinkersBridgeHolder.get().modifyShieldEfficiency(tool, shieldElement, efficiency);
     }
 
     /** 动能攻击 hook 派发：工具上所有词条链式调整动能伤害 */
-    private static float dispatchKineticDamage(ToolStack tool, LivingEntity target, float amount) {
-        if (tool == null) {
+    private static float dispatchKineticDamage(ItemStack tool, LivingEntity target, float amount) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return amount;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            amount = entry.getHook(TcdexHooks.KINETIC_ATTACK).modifyKineticDamage(tool, entry, target, amount);
-        }
-        return amount;
+        return TinkersBridgeHolder.get().modifyKineticDamage(tool, target, amount);
     }
 
     /** 动能攻击 hook 派发：工具上所有词条链式调整动能破盾效率 */
-    private static float dispatchKineticShieldEfficiency(ToolStack tool, ElementType shieldElement, float efficiency) {
-        if (tool == null) {
+    private static float dispatchKineticShieldEfficiency(ItemStack tool, ElementType shieldElement, float efficiency) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return efficiency;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            efficiency = entry.getHook(TcdexHooks.KINETIC_ATTACK).modifyKineticShieldEfficiency(tool, entry, shieldElement, efficiency);
-        }
-        return efficiency;
+        return TinkersBridgeHolder.get().modifyKineticShieldEfficiency(tool, shieldElement, efficiency);
     }
 
     /** 破盾 hook 派发：工具上词条链式调整破盾爆炸伤害 + 触发破盾回调 */
-    private static float dispatchShieldBreak(ToolStack tool, LivingEntity target, ElementType shieldElement,
+    private static float dispatchShieldBreak(ItemStack tool, LivingEntity target, ElementType shieldElement,
                                              float damage, @Nullable Player attacker) {
-        if (tool == null) {
+        if (tool == null || !TinkersBridgeHolder.isAvailable()) {
             return damage;
         }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            damage = entry.getHook(TcdexHooks.SHIELD_BREAK)
-                    .modifyBreakExplosion(tool, entry, target, shieldElement, damage);
-        }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            entry.getHook(TcdexHooks.SHIELD_BREAK)
-                    .onShieldBreak(tool, entry, target, shieldElement, attacker);
-        }
+        damage = TinkersBridgeHolder.get().modifyBreakExplosion(tool, target, shieldElement, damage);
+        TinkersBridgeHolder.get().onShieldBreak(tool, target, shieldElement, attacker);
         return damage;
     }
 
     /** 破盾演出：AOE 爆炸（吃护盾元素抗性）+ 目标获得护盾元素状态（50 层）。只影响非玩家实体（命运2：破盾爆炸不伤玩家） */
-    private static void shieldBreak(LivingEntity target, ElementType shieldElement, float baseDamage) {
+    public static void shieldBreak(LivingEntity target, ElementType shieldElement, float baseDamage) {
         Level level = target.level();
         float damage = baseDamage * ElementManager.getResistance(target, shieldElement);
         DamageSource source = ModDamageSources.element(target, shieldElement);
@@ -367,25 +364,4 @@ public class ElementalDamageEvents {
         return element != null ? ModDamageSources.element(player, element) : ModDamageSources.kinetic(player);
     }
 
-    /** 将物品转为匠魂 ToolStack（非匠魂/空物品返回 null） */
-    private static ToolStack asTool(ItemStack stack) {
-        if (stack.isEmpty() || !(stack.getItem() instanceof IModifiable)) {
-            return null;
-        }
-        ToolStack tool = ToolStack.from(stack);
-        return tool.isBroken() ? null : tool;
-    }
-
-    /** 查找工具上的指定词条（第一个生效） */
-    private static <T extends slimeknights.tconstruct.library.modifiers.Modifier> T findModifier(ToolStack tool, Class<T> type) {
-        if (tool == null) {
-            return null;
-        }
-        for (ModifierEntry entry : tool.getModifierList()) {
-            if (type.isInstance(entry.getModifier())) {
-                return type.cast(entry.getModifier());
-            }
-        }
-        return null;
-    }
 }
