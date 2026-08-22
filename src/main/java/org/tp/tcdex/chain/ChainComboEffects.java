@@ -81,5 +81,56 @@ public final class ChainComboEffects {
                 }
             }
         }
+
+        // ===== 多元素组合（三元及以上） =====
+        int maxMulti = finisher ? 2 : 1;
+        int multiApplied = 0;
+        for (MultiComboEffect effect : MultiComboEffectRegistry.findFor(elements)) {
+            if (multiApplied >= maxMulti) {
+                break;
+            }
+            multiApplied++;
+            float radius = effect.radius() > 0 ? effect.radius() : 4.0f;
+            AABB box = new AABB(center, center).inflate(radius);
+            List<LivingEntity> targets = level.getEntitiesOfClass(LivingEntity.class, box,
+                    e -> e.isAlive() && !(e instanceof Player));
+            switch (effect.type()) {
+                case DAMAGE -> {
+                    float damage = effect.damage() * multiplier;
+                    for (LivingEntity target : targets) {
+                        if (player != null) {
+                            target.hurt(ModDamageSources.element(player, effect.elements().get(0)), damage);
+                        } else {
+                            target.hurt(target.damageSources().magic(), damage);
+                        }
+                    }
+                }
+                case CONTROL -> {
+                    for (LivingEntity target : targets) {
+                        target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, effect.duration(), 2, false, true));
+                        target.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, effect.duration(), 1, false, true));
+                    }
+                }
+                case SHIELD -> {
+                    if (player != null) {
+                        int amplifier = Math.max(0, (int) effect.intensity() - 1);
+                        player.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, effect.duration(), amplifier, false, true));
+                    }
+                }
+                case DIFFUSION -> {
+                    for (LivingEntity target : targets) {
+                        for (ElementType element : effect.elements()) {
+                            IElementalEntity.of(target).addElementState(element, 1, 100);
+                        }
+                    }
+                }
+                case AMPLIFY -> {
+                    if (player != null) {
+                        int amplifier = Math.max(0, (int) effect.intensity() - 1);
+                        player.addEffect(new MobEffectInstance(MobEffects.DAMAGE_BOOST, effect.duration(), amplifier, false, true));
+                    }
+                }
+            }
+        }
     }
 }

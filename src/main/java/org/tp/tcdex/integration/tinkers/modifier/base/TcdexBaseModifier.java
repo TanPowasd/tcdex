@@ -24,6 +24,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import org.tp.tcdex.integration.tinkers.modifier.hook.ChainModifierHook;
 import org.tp.tcdex.integration.tinkers.modifier.hook.ElementalAttackModifierHook;
 import org.tp.tcdex.integration.tinkers.modifier.hook.ElementalKeywordHook;
 import org.tp.tcdex.integration.tinkers.modifier.hook.ElementalStateApplyHook;
@@ -160,7 +161,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
         SlingAngleModifierHook, SlingForceModifierHook, SlingLaunchModifierHook,
         // TCDEX 自定义
         KillingHook, ElementalAttackModifierHook, ShieldBreakHook, PlayerShieldHook, PlayerShieldBreakHook, ElementalStateApplyHook,
-        ElementalKeywordHook, KineticAttackModifierHook, ReactionModifierHook {
+        ElementalKeywordHook, KineticAttackModifierHook, ReactionModifierHook, ChainModifierHook {
 
     @Override
     protected void registerHooks(ModuleHookMap.Builder hookBuilder) {
@@ -196,7 +197,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
                 // TCDEX 自定义
                 TcdexHooks.KILLING_HOOK, TcdexHooks.ELEMENTAL_ATTACK, TcdexHooks.SHIELD_BREAK, TcdexHooks.PLAYER_SHIELD,
                 TcdexHooks.PLAYER_SHIELD_BREAK, TcdexHooks.ELEMENTAL_STATE_APPLY, TcdexHooks.ELEMENTAL_KEYWORD,
-                TcdexHooks.KINETIC_ATTACK, TcdexHooks.REACTION);
+                TcdexHooks.KINETIC_ATTACK, TcdexHooks.REACTION, TcdexHooks.CHAIN);
     }
 
     // ========================================================================
@@ -825,6 +826,59 @@ public abstract class TcdexBaseModifier extends Modifier implements
         modifierOnReactionTriggered(tool, modifier, target, reaction, source, finalIntensity);
     }
 
+    // ===== 原命连携 Hook =====
+
+    @Override
+    public float modifyChainContribution(IToolStackView tool, ModifierEntry modifier,
+                                         org.tp.tcdex.element.ElementType element,
+                                         org.tp.tcdex.chain.ElementActionType actionType, float contribution) {
+        return modifierModifyChainContribution(tool, modifier, element, actionType, contribution);
+    }
+
+    @Override
+    public float modifyDetonateDamage(IToolStackView tool, ModifierEntry modifier, float damage) {
+        return modifierModifyDetonateDamage(tool, modifier, damage);
+    }
+
+    @Override
+    public float modifyDetonateRadius(IToolStackView tool, ModifierEntry modifier, float radius) {
+        return modifierModifyDetonateRadius(tool, modifier, radius);
+    }
+
+    @Override
+    public int modifyDetonateCooldown(IToolStackView tool, ModifierEntry modifier, int cooldown) {
+        return modifierModifyDetonateCooldown(tool, modifier, cooldown);
+    }
+
+    @Override
+    public int modifyDetonateBuffDuration(IToolStackView tool, ModifierEntry modifier, int duration) {
+        return modifierModifyDetonateBuffDuration(tool, modifier, duration);
+    }
+
+    @Override
+    public float modifyFinisherDamage(IToolStackView tool, ModifierEntry modifier, float damage) {
+        return modifierModifyFinisherDamage(tool, modifier, damage);
+    }
+
+    @Override
+    public float modifyFinisherRadius(IToolStackView tool, ModifierEntry modifier, float radius) {
+        return modifierModifyFinisherRadius(tool, modifier, radius);
+    }
+
+    @Override
+    public void onChainDetonate(IToolStackView tool, ModifierEntry modifier,
+                                LivingEntity player, java.util.List<org.tp.tcdex.element.ElementType> elements,
+                                @javax.annotation.Nullable LivingEntity center) {
+        modifierOnChainDetonate(tool, modifier, player, elements, center);
+    }
+
+    @Override
+    public void onChainFinisher(IToolStackView tool, ModifierEntry modifier,
+                                LivingEntity player, LivingEntity target,
+                                java.util.List<org.tp.tcdex.element.ElementType> elements) {
+        modifierOnChainFinisher(tool, modifier, player, target, elements);
+    }
+
     // ========================================================================
     //  可覆写方法（全部空实现 / 安全默认值，子类按需覆写）
     // ========================================================================
@@ -1256,5 +1310,47 @@ public abstract class TcdexBaseModifier extends Modifier implements
 
     protected void modifierOnReactionTriggered(IToolStackView tool, ModifierEntry modifier, LivingEntity target,
                                                org.tp.tcdex.reaction.ElementReaction reaction, @javax.annotation.Nullable LivingEntity source, float finalIntensity) {
+    }
+
+    // ===== 原命连携可覆写方法 =====
+
+    protected float modifierModifyChainContribution(IToolStackView tool, ModifierEntry modifier,
+                                                    org.tp.tcdex.element.ElementType element,
+                                                    org.tp.tcdex.chain.ElementActionType actionType, float contribution) {
+        return contribution;
+    }
+
+    protected float modifierModifyDetonateDamage(IToolStackView tool, ModifierEntry modifier, float damage) {
+        return damage;
+    }
+
+    protected float modifierModifyDetonateRadius(IToolStackView tool, ModifierEntry modifier, float radius) {
+        return radius;
+    }
+
+    protected int modifierModifyDetonateCooldown(IToolStackView tool, ModifierEntry modifier, int cooldown) {
+        return cooldown;
+    }
+
+    protected int modifierModifyDetonateBuffDuration(IToolStackView tool, ModifierEntry modifier, int duration) {
+        return duration;
+    }
+
+    protected float modifierModifyFinisherDamage(IToolStackView tool, ModifierEntry modifier, float damage) {
+        return damage;
+    }
+
+    protected float modifierModifyFinisherRadius(IToolStackView tool, ModifierEntry modifier, float radius) {
+        return radius;
+    }
+
+    protected void modifierOnChainDetonate(IToolStackView tool, ModifierEntry modifier,
+                                           LivingEntity player, java.util.List<org.tp.tcdex.element.ElementType> elements,
+                                           @javax.annotation.Nullable LivingEntity center) {
+    }
+
+    protected void modifierOnChainFinisher(IToolStackView tool, ModifierEntry modifier,
+                                           LivingEntity player, LivingEntity target,
+                                           java.util.List<org.tp.tcdex.element.ElementType> elements) {
     }
 }

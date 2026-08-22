@@ -1,0 +1,18 @@
+{
+  "id": "example_void_storm",
+  "triggerTimes": ["CHAIN_CHANGE", "DETONATE", "FINISHER"],
+  "minElements": 3,
+  "maxElements": 6,
+  "contains": ["void", "mistflow"],
+  "exclude": ["prism"],
+  "priority": 50,
+  "effect": {
+    "type": "DAMAGE",
+    "damage": 12.0,
+    "radius": 3.0,
+    "duration": 0,
+    "intensity": 1.0,
+    "selfBuff": false,
+    "triggerReactions": true
+  }
+}

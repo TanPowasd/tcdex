@@ -7,14 +7,18 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.tp.tcdex.api.ChainTriggerTime;
+import org.tp.tcdex.api.ITinkersBridge;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.echo.ElementalEchoManager;
 import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.transcendence.TranscendenceManager;
 import org.tp.tcdex.element.ElementType;
+import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.light.LightLevelManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import org.tp.tcdex.network.ChainStateSyncPacket;
@@ -95,6 +99,7 @@ public final class ChainManager {
 
         long now = player.level().getGameTime();
         float weight = actionType.getWeight();
+        weight = applyChainContributionModifiers(player, element, actionType, weight);
         data.addElement(element, now, weight);
 
         if (target != null && target != player && target.isAlive()) {
@@ -103,6 +108,15 @@ public final class ChainManager {
         }
 
         addGroupContribution(player, data);
+
+        // 链变化时触发通用元素链反应
+        List<ElementType> currentElements = new ArrayList<>();
+        for (ChainEntry entry : data.getMainChain()) {
+            if (!currentElements.contains(entry.element())) {
+                currentElements.add(entry.element());
+            }
+        }
+        GenericChainReactionExecutor.trigger(player, currentElements, ChainTriggerTime.CHAIN_CHANGE, target);
     }
 
     /**
@@ -141,33 +155,41 @@ public final class ChainManager {
 
         Level level = player.level();
         Vec3 center = player.position();
+        LivingEntity centerEntity = null;
         if (data.getFocusTargetEntityId() >= 0) {
             var focus = level.getEntity(data.getFocusTargetEntityId());
             if (focus instanceof LivingEntity living && living.isAlive()) {
+                centerEntity = living;
                 center = living.position();
             }
         }
 
         float fusionMultiplier = getFusionMultiplier(player);
         float totalDamage = (DETONATE_BASE_DAMAGE + totalContribution * DETONATE_CONTRIBUTION_FACTOR) * fusionMultiplier;
+        totalDamage = applyDetonateDamageModifiers(player, totalDamage);
+        float detonateRadius = applyDetonateRadiusModifiers(player, DETONATE_RADIUS);
+        int buffDuration = applyDetonateBuffModifiers(player, CHAIN_BUFF_DURATION);
+        int cooldown = applyDetonateCooldownModifiers(player, DETONATE_COOLDOWN);
 
         if (elements.size() >= 6) {
             applyCataclysm(level, center, elements);
         } else {
-            applyDetonation(level, center, elements, DETONATE_RADIUS, totalDamage);
+            applyDetonation(level, center, elements, detonateRadius, totalDamage);
             if (elements.size() >= 4) {
                 ChainAreaManager.spawnStorm(level, center, elements);
             }
         }
         ChainComboEffects.apply(level, center, elements, player, false);
         grantFusionResources(player, elements);
+        dispatchChainDetonate(player, elements, centerEntity);
+        GenericChainReactionExecutor.trigger(player, elements, ChainTriggerTime.DETONATE, centerEntity);
 
         // 清空资源、施加增益、进入自然冷却
         data.clearMainChain();
         data.clearFocusChain();
         data.setGroupOverflow(0.0f);
-        data.setChainBuffTicks(CHAIN_BUFF_DURATION);
-        data.setDetonateCooldown(DETONATE_COOLDOWN);
+        data.setChainBuffTicks(buffDuration);
+        data.setDetonateCooldown(cooldown);
         return true;
     }
 
@@ -232,6 +254,96 @@ public final class ChainManager {
     }
 
    
+    // ===== 匠魂词条 Hook 派发 =====
+
+    private static float applyChainContributionModifiers(Player player, ElementType element,
+                                                         ElementActionType actionType, float contribution) {
+        if (!TinkersBridgeHolder.isAvailable()) {
+            return contribution;
+        }
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) {
+                contribution = bridge.modifyChainContribution(stack, element, actionType, contribution);
+            }
+        }
+        return contribution;
+    }
+
+    private static float applyDetonateDamageModifiers(Player player, float damage) {
+        if (!TinkersBridgeHolder.isAvailable()) return damage;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) damage = bridge.modifyDetonateDamage(stack, damage);
+        }
+        return damage;
+    }
+
+    private static float applyDetonateRadiusModifiers(Player player, float radius) {
+        if (!TinkersBridgeHolder.isAvailable()) return radius;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) radius = bridge.modifyDetonateRadius(stack, radius);
+        }
+        return radius;
+    }
+
+    private static int applyDetonateCooldownModifiers(Player player, int cooldown) {
+        if (!TinkersBridgeHolder.isAvailable()) return cooldown;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) cooldown = bridge.modifyDetonateCooldown(stack, cooldown);
+        }
+        return cooldown;
+    }
+
+    private static int applyDetonateBuffModifiers(Player player, int duration) {
+        if (!TinkersBridgeHolder.isAvailable()) return duration;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) duration = bridge.modifyDetonateBuffDuration(stack, duration);
+        }
+        return duration;
+    }
+
+    private static float applyFinisherDamageModifiers(Player player, float damage) {
+        if (!TinkersBridgeHolder.isAvailable()) return damage;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) damage = bridge.modifyFinisherDamage(stack, damage);
+        }
+        return damage;
+    }
+
+    private static float applyFinisherRadiusModifiers(Player player, float radius) {
+        if (!TinkersBridgeHolder.isAvailable()) return radius;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) radius = bridge.modifyFinisherRadius(stack, radius);
+        }
+        return radius;
+    }
+
+    private static void dispatchChainDetonate(Player player, List<ElementType> elements, @Nullable LivingEntity center) {
+        if (!TinkersBridgeHolder.isAvailable()) return;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) {
+                bridge.onChainDetonate(stack, player, elements, center);
+            }
+        }
+    }
+
+    private static void dispatchChainFinisher(Player player, LivingEntity target, List<ElementType> elements) {
+        if (!TinkersBridgeHolder.isAvailable()) return;
+        ITinkersBridge bridge = TinkersBridgeHolder.get();
+        for (ItemStack stack : List.of(player.getMainHandItem(), player.getOffhandItem())) {
+            if (bridge.isUsableTinkersTool(stack)) {
+                bridge.onChainFinisher(stack, player, target, elements);
+            }
+        }
+    }
+
     /** 计算连携/终结与元素能量、超越融合后的伤害倍率 */
     private static float getFusionMultiplier(Player player) {
         float multiplier = 1.0f;
@@ -324,9 +436,11 @@ public final class ChainManager {
         finisherDamage *= LightLevelManager.getDealtDamageMultiplier(
                 LightLevelManager.getPlayerAttackLightLevel(player),
                 LightLevelManager.getMonsterLightLevel(target));
+        finisherDamage = applyFinisherDamageModifiers(player, finisherDamage);
+        float finisherRadius = applyFinisherRadiusModifiers(player, DETONATE_RADIUS + 1.0f);
 
         // 以破绽目标为核心造成终结伤害与范围效果
-        applyDetonation(level, center, elements, DETONATE_RADIUS + 1.0f, finisherDamage);
+        applyDetonation(level, center, elements, finisherRadius, finisherDamage);
         if (elements.size() >= 6) {
             applyCataclysm(level, center, elements);
         } else if (elements.size() >= 4) {
@@ -335,6 +449,8 @@ public final class ChainManager {
         ChainComboEffects.apply(level, center, elements, player, true);
 
         // 终结后消耗破绽窗口
+        dispatchChainFinisher(player, target, elements);
+        GenericChainReactionExecutor.trigger(player, elements, ChainTriggerTime.FINISHER, target);
         IElementalEntity.of(target).setBreakTicks(0);
         IElementalEntity.of(target).resetImbalance();
 

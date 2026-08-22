@@ -4,10 +4,12 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import org.tp.tcdex.chain.ElementActionType;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.reaction.ElementReaction;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * Tinkers 桥接接口：Core 只依赖此接口，不直接引用 Tinkers 类。
@@ -100,4 +102,24 @@ public interface ITinkersBridge {
     void onReactionTriggered(ItemStack stack, LivingEntity target, ElementReaction reaction, LivingEntity source, float intensity);
 
     void applyFiveForcesHitState(ItemStack stack, Player player, LivingEntity target, ElementType element);
+
+    // ===== 原命连携 Hook 桥接 =====
+
+    float modifyChainContribution(ItemStack stack, ElementType element, ElementActionType actionType, float contribution);
+
+    float modifyDetonateDamage(ItemStack stack, float damage);
+
+    float modifyDetonateRadius(ItemStack stack, float radius);
+
+    int modifyDetonateCooldown(ItemStack stack, int cooldown);
+
+    int modifyDetonateBuffDuration(ItemStack stack, int duration);
+
+    float modifyFinisherDamage(ItemStack stack, float damage);
+
+    float modifyFinisherRadius(ItemStack stack, float radius);
+
+    void onChainDetonate(ItemStack stack, LivingEntity player, List<ElementType> elements, @Nullable LivingEntity center);
+
+    void onChainFinisher(ItemStack stack, LivingEntity player, LivingEntity target, List<ElementType> elements);
 }

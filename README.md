@@ -329,6 +329,181 @@ float aura = TcdexReactionAPI.getAura(target, ElementType.SOLAR);
 TcdexReactionAPI.consumeAura(target, ElementType.SOLAR, 1.0f);
 ```
 
+### 原命连携 API
+
+入口：`org.tp.tcdex.api.TcdexChainAPI`
+
+```java
+// 上报元素行为（可用于自定义技能/装备联动）
+TcdexChainAPI.reportElementAction(player, ElementType.SOLAR, ElementActionType.SKILL);
+TcdexChainAPI.reportElementAction(player, ElementType.SOLAR, ElementActionType.SKILL, target);
+
+// 读取连携状态
+List<ChainEntry> main = TcdexChainAPI.getMainChain(player);
+List<ChainEntry> focus = TcdexChainAPI.getFocusChain(player);
+int distinct = TcdexChainAPI.getDistinctElementCount(player);
+float group = TcdexChainAPI.getGroupOverflow(player);
+int cooldown = TcdexChainAPI.getDetonateCooldown(player);
+int buff = TcdexChainAPI.getChainBuffTicks(player);
+
+// 手动触发连携引爆 / 终结技
+boolean detonated = TcdexChainAPI.tryDetonate(player);
+boolean finished = TcdexChainAPI.tryFinisher(player, target);
+
+// 清空连携
+TcdexChainAPI.clearChain(player);
+```
+
+行为类型：
+
+| 类型 | 说明 |
+|---|---|
+| `MELEE` | 元素武器普攻 |
+| `SKILL` | 元素技能/法术 |
+| `BURST` | 元素爆发 |
+| `REACTION` | 触发元素反应 |
+| `ECHO` | 元素残响引爆 |
+| `SHIELD_BREAK` | 元素护盾破碎 |
+
+### 通用元素链注册 API（TcdexChainRegistry）
+
+附属 Mod 可以注册自定义通用元素链反应和自定义元素行为来源。
+
+#### 注册通用元素链反应
+
+```java
+TcdexChainRegistry.registerGenericReaction(
+        GenericChainReaction.builder("mymod:void_storm")
+                // 自定义匹配条件：例如链中包含虚空和罡流，元素数不少于 3
+                .matches(ctx -> ctx.getElements().contains(ElementType.VOID)
+                        && ctx.getElements().contains(ElementType.MISTFLOW)
+                        && ctx.getElements().size() >= 3)
+                // 触发时机：链变化、引爆、终结都触发
+                .triggers(ChainTriggerTime.CHAIN_CHANGE,
+                          ChainTriggerTime.DETONATE,
+                          ChainTriggerTime.FINISHER)
+                // 内置效果：范围伤害 + 触发元素反应
+                .effect(new GenericChainEffect(
+                        ReactionType.DAMAGE,
+                        12.0f,   // damage
+                        3.0f,    // radius
+                        0,       // duration
+                        1.0f,    // intensity
+                        false,   // selfBuff
+                        true))   // triggerReactions
+                // 也可以自定义回调
+                .callback(ctx -> {
+                    // 附属 Mod 自己的效果逻辑
+                })
+                .priority(50)
+                .build());
+```
+
+常用效果类型：
+
+| 类型 | 说明 |
+|---|---|
+| `DAMAGE` | 范围内伤害 |
+| `CONTROL` | 减速/虚弱/自身加速 |
+| `SHIELD` | 自身或目标吸收盾 |
+| `AMPLIFY` | 自身或目标伤害提升 |
+| `DIFFUSION` | 把链上元素扩散到附近敌人 |
+
+高级选项：
+
+- `selfBuff = true`：护盾/增幅/加速作用于玩家自身。
+- `triggerReactions = true`：对范围内敌人尝试触发常规元素反应。
+
+触发时机：
+
+- `CHAIN_CHANGE`：链路变化时实时触发。
+- `DETONATE`：连携引爆时触发。
+- `FINISHER`：命定终结时触发。
+
+#### 注册自定义元素行为来源
+
+让自定义物品/技能自动计入连携链：
+
+```java
+TcdexChainRegistry.registerElementActionSource(new ElementActionSource() {
+    @Override
+    public boolean matches(Player player, ItemStack stack,
+                           @Nullable LivingEntity target, ElementType element) {
+        return stack.is(MyItems.MY_ELEMENT_WAND.get());
+    }
+
+    @Override
+    public ElementActionType getActionType() {
+        return ElementActionType.SKILL;
+    }
+});
+```
+
+---
+
+### JSON 简易元素链支持
+
+将 JSON 放入：
+
+```text
+config/tcdex-chain/*.json
+```
+
+示例 `config/tcdex-chain/example.json`：
+
+```json
+{
+  "id": "example_void_storm",
+  "triggerTimes": ["CHAIN_CHANGE", "DETONATE", "FINISHER"],
+  "minElements": 3,
+  "maxElements": 6,
+  "contains": ["void", "mistflow"],
+  "exclude": ["prism"],
+  "priority": 50,
+  "effect": {
+    "type": "DAMAGE",
+    "damage": 12.0,
+    "radius": 3.0,
+    "duration": 0,
+    "intensity": 1.0,
+    "selfBuff": false,
+    "triggerReactions": true
+  }
+}
+```
+
+字段说明：
+
+| 字段 | 说明 |
+|---|---|
+| `id` | 反应唯一 ID |
+| `triggerTimes` | `CHAIN_CHANGE` / `DETONATE` / `FINISHER` |
+| `minElements` | 最少不同元素数量 |
+| `maxElements` | 最多不同元素数量，0 表示不限 |
+| `contains` | 链中必须包含的元素 |
+| `exclude` | 链中不能包含的元素 |
+| `priority` | 优先级，越大越先触发 |
+| `effect.type` | `DAMAGE` / `CONTROL` / `SHIELD` / `AMPLIFY` / `DIFFUSION` |
+| `effect.damage` | 伤害 |
+| `effect.radius` | 范围 |
+| `effect.duration` | 持续 tick |
+| `effect.intensity` | 强度/等级 |
+| `effect.selfBuff` | 是否作用于玩家自身 |
+| `effect.triggerReactions` | 是否触发附近常规元素反应 |
+
+也支持一个文件包含数组，或多个反应：
+
+```json
+{
+  "reactions": [
+    { ... },
+    { ... }
+  ]
+}
+```
+
+---
+
 ### 光等 API
 
 入口：`org.tp.tcdex.api.TcdexAPI`
@@ -452,6 +627,62 @@ public class MyModifier extends TcdexBaseModifier {
 | `ELEMENTAL_KEYWORD` | 调整关键词伤害/倍率/半径 |
 | `KINETIC_ATTACK` | 动能伤害与动能破盾 |
 | `REACTION` | 调整元素反应全部参数并回调 |
+| `CHAIN` | 调整原命连携积累/引爆/终结技并回调 |
+
+#### 原命连携 Hook（CHAIN_HOOK）
+
+`TcdexBaseModifier` 已自动注册 `TcdexHooks.CHAIN`，子类直接覆写 `modifierXxx`：
+
+```java
+public class ChainModifier extends TcdexBaseModifier {
+
+    // 元素行为连携贡献 ×1.5
+    @Override
+    protected float modifierModifyChainContribution(IToolStackView tool, ModifierEntry modifier,
+                                                    ElementType element, ElementActionType actionType,
+                                                    float contribution) {
+        return contribution * 1.5f;
+    }
+
+    // 连携引爆伤害 +20%
+    @Override
+    protected float modifierModifyDetonateDamage(IToolStackView tool, ModifierEntry modifier, float damage) {
+        return damage * 1.2f;
+    }
+
+    // 连携引爆范围 +1
+    @Override
+    protected float modifierModifyDetonateRadius(IToolStackView tool, ModifierEntry modifier, float radius) {
+        return radius + 1.0f;
+    }
+
+    // 终结技伤害强化
+    @Override
+    protected float modifierModifyFinisherDamage(IToolStackView tool, ModifierEntry modifier, float damage) {
+        return damage * 1.5f;
+    }
+
+    // 引爆后回调：触发自定义联动
+    @Override
+    protected void modifierOnChainDetonate(IToolStackView tool, ModifierEntry modifier,
+                                           LivingEntity player, List<ElementType> elements,
+                                           @Nullable LivingEntity center) {
+        // 例如给周围敌人施加自定义效果
+    }
+}
+```
+
+不继承 `TcdexBaseModifier` 时，也可以手动实现 `ChainModifierHook` 并注册：
+
+```java
+public class MyChainModifier extends Modifier implements ChainModifierHook {
+    @Override
+    protected void registerHooks(ModuleHookMap.Builder hookBuilder) {
+        super.registerHooks(hookBuilder);
+        hookBuilder.addHook(this, TcdexHooks.CHAIN);
+    }
+}
+```
 
 #### 自定义 ModuleHook
 

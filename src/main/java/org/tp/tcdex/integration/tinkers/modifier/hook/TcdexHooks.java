@@ -41,6 +41,9 @@ public final class TcdexHooks {
     /** 元素反应 hook：词条调整反应持续时间/范围/强度/冷却 */
     public static final ModuleHook<ReactionModifierHook> REACTION;
 
+    /** 原命连携 hook：词条调整连携积累/引爆/终结技 */
+    public static final ModuleHook<ChainModifierHook> CHAIN;
+
     static {
         KILLING_HOOK = ModifierHooks.register(
                 ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "killing_hook"),
@@ -103,6 +106,13 @@ public final class TcdexHooks {
                 ReactionModifierHook.class,
                 ReactionModifierHook.AllMerger::new,
                 new ReactionModifierHook() {
+                }
+        );
+        CHAIN = ModifierHooks.register(
+                ResourceLocation.fromNamespaceAndPath(Tcdex.MODID, "chain"),
+                ChainModifierHook.class,
+                ChainModifierHook.AllMerger::new,
+                new ChainModifierHook() {
                 }
         );
     }

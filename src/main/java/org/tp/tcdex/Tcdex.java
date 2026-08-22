@@ -86,6 +86,9 @@ public class Tcdex {
 
         Config.items.forEach((item) -> LOGGER.info("ITEM >> {}", item.toString()));
 
+        // 加载 config/tcdex-chain/*.json 简易元素链
+        org.tp.tcdex.chain.ChainJsonLoader.loadAll();
+
         org.tp.tcdex.integration.IntegrationManager.fireCommonSetup(event);
     }
 

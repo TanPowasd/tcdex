@@ -18,6 +18,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.artifact.ArtifactManager;
+import org.tp.tcdex.api.TcdexChainRegistry;
 import org.tp.tcdex.chain.ElementActionType;
 import org.tp.tcdex.chain.ElementCombatEvents;
 import org.tp.tcdex.damage.ModDamageSources;
@@ -124,7 +125,9 @@ public class ElementalDamageEvents {
 
         // 连携系统：元素武器攻击计入玩家连携链
         if (element != null) {
-            ElementCombatEvents.report(player, element, ElementActionType.MELEE, target);
+            ElementActionType chainAction = TcdexChainRegistry.resolveElementAction(
+                    player, toolStack != null ? toolStack : player.getMainHandItem(), target, element);
+            ElementCombatEvents.report(player, element, chainAction != null ? chainAction : ElementActionType.MELEE, target);
         }
 
         // 武器催化：元素攻击积累催化进度

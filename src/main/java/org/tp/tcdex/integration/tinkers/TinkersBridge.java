@@ -6,6 +6,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.tp.tcdex.api.ITinkersBridge;
+import org.tp.tcdex.chain.ElementActionType;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.reaction.ElementReaction;
 import org.tp.tcdex.integration.tinkers.catalyst.CatalystManager;
@@ -28,6 +29,7 @@ import slimeknights.tconstruct.library.tools.item.IModifiable;
 import slimeknights.tconstruct.library.tools.nbt.ToolStack;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 /**
  * Tinkers 桥接实现：把 Core 需要的 Tinkers 能力封装到这里。
@@ -507,6 +509,97 @@ public class TinkersBridge implements ITinkersBridge {
         for (ModifierEntry entry : tool.getModifierList()) {
             entry.getHook(TcdexHooks.REACTION)
                     .onReactionTriggered(tool, entry, target, reaction, source, intensity);
+        }
+    }
+
+    // ===== 原命连携 Hook 桥接 =====
+
+    @Override
+    public float modifyChainContribution(ItemStack stack, ElementType element, ElementActionType actionType, float contribution) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return contribution;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            contribution = entry.getHook(TcdexHooks.CHAIN)
+                    .modifyChainContribution(tool, entry, element, actionType, contribution);
+        }
+        return contribution;
+    }
+
+    @Override
+    public float modifyDetonateDamage(ItemStack stack, float damage) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return damage;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            damage = entry.getHook(TcdexHooks.CHAIN).modifyDetonateDamage(tool, entry, damage);
+        }
+        return damage;
+    }
+
+    @Override
+    public float modifyDetonateRadius(ItemStack stack, float radius) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return radius;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            radius = entry.getHook(TcdexHooks.CHAIN).modifyDetonateRadius(tool, entry, radius);
+        }
+        return radius;
+    }
+
+    @Override
+    public int modifyDetonateCooldown(ItemStack stack, int cooldown) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return cooldown;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            cooldown = entry.getHook(TcdexHooks.CHAIN).modifyDetonateCooldown(tool, entry, cooldown);
+        }
+        return cooldown;
+    }
+
+    @Override
+    public int modifyDetonateBuffDuration(ItemStack stack, int duration) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return duration;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            duration = entry.getHook(TcdexHooks.CHAIN).modifyDetonateBuffDuration(tool, entry, duration);
+        }
+        return duration;
+    }
+
+    @Override
+    public float modifyFinisherDamage(ItemStack stack, float damage) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return damage;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            damage = entry.getHook(TcdexHooks.CHAIN).modifyFinisherDamage(tool, entry, damage);
+        }
+        return damage;
+    }
+
+    @Override
+    public float modifyFinisherRadius(ItemStack stack, float radius) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return radius;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            radius = entry.getHook(TcdexHooks.CHAIN).modifyFinisherRadius(tool, entry, radius);
+        }
+        return radius;
+    }
+
+    @Override
+    public void onChainDetonate(ItemStack stack, LivingEntity player, List<ElementType> elements, @Nullable LivingEntity center) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            entry.getHook(TcdexHooks.CHAIN).onChainDetonate(tool, entry, player, elements, center);
+        }
+    }
+
+    @Override
+    public void onChainFinisher(ItemStack stack, LivingEntity player, LivingEntity target, List<ElementType> elements) {
+        ToolStack tool = toolFrom(stack);
+        if (tool == null) return;
+        for (ModifierEntry entry : tool.getModifierList()) {
+            entry.getHook(TcdexHooks.CHAIN).onChainFinisher(tool, entry, player, target, elements);
         }
     }
 
