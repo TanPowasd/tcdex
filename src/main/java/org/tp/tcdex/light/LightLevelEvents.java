@@ -26,6 +26,10 @@ import net.minecraftforge.client.event.RenderNameTagEvent;
 import org.tp.tcdex.ModItems;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.TcdexF;
+import org.tp.tcdex.chain.ChainEntry;
+import org.tp.tcdex.chain.ChainManager;
+import org.tp.tcdex.chain.IPlayerChainData;
+import org.tp.tcdex.chain.PlayerChainCapability;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
@@ -324,6 +328,73 @@ public class LightLevelEvents {
                                             // 指定并固化元素（覆盖原随机结果，之后不可再变）
                                             bridge.setWeaponElement(stack, element);
                                             ctx.getSource().sendSuccess(() -> Component.translatable("command.tcdex.setelement.success", element.getId()), true);
+                                            return 1;
+                                        })
+                                )
+                        )
+                        .then(Commands.literal("chain")
+                                .then(Commands.literal("detonate")
+                                        .executes(ctx -> {
+                                            Player player = ctx.getSource().getPlayerOrException();
+                                            if (ChainManager.tryDetonate(player)) {
+                                                ctx.getSource().sendSuccess(() -> Component.literal("[连携] 引爆成功"), true);
+                                                return 1;
+                                            }
+                                            ctx.getSource().sendFailure(Component.literal("[连携] 当前没有可引爆的连携链，或正在冷却"));
+                                            return 0;
+                                        })
+                                )
+                                .then(Commands.literal("finisher")
+                                        .executes(ctx -> {
+                                            Player player = ctx.getSource().getPlayerOrException();
+                                            IPlayerChainData data = PlayerChainCapability.get(player).orElse(null);
+                                            if (data == null || data.getFocusTargetEntityId() < 0) {
+                                                ctx.getSource().sendFailure(Component.literal("[连携] 没有焦点目标，无法发动终结技"));
+                                                return 0;
+                                            }
+                                            var focus = player.level().getEntity(data.getFocusTargetEntityId());
+                                            if (!(focus instanceof LivingEntity living)) {
+                                                ctx.getSource().sendFailure(Component.literal("[连携] 焦点目标无效"));
+                                                return 0;
+                                            }
+                                            if (ChainManager.tryFinisher(player, living)) {
+                                                ctx.getSource().sendSuccess(() -> Component.literal("[连携] 命定终结技发动成功"), true);
+                                                return 1;
+                                            }
+                                            ctx.getSource().sendFailure(Component.literal("[连携] 终结失败：目标未破绽、无连携链或正在冷却"));
+                                            return 0;
+                                        })
+                                )
+                                .then(Commands.literal("show")
+                                        .executes(ctx -> {
+                                            Player player = ctx.getSource().getPlayerOrException();
+                                            IPlayerChainData data = PlayerChainCapability.get(player).orElse(null);
+                                            if (data == null) {
+                                                ctx.getSource().sendFailure(Component.literal("[连携] 玩家连携数据不存在"));
+                                                return 0;
+                                            }
+                                            player.sendSystemMessage(Component.literal("[连携] 主链:"));
+                                            for (ChainEntry entry : data.getMainChain()) {
+                                                player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                                                        "  %s | 贡献 %.1f | 剩余 %d tick",
+                                                        entry.element().getId(), entry.contribution(),
+                                                        Math.max(0, (300 - (player.level().getGameTime() - entry.lastUsedTime()))))));
+                                            }
+                                            player.sendSystemMessage(Component.literal(String.format(Locale.ROOT,
+                                                    "不同元素数量: %d | 群体溢出: %.1f | 引爆冷却: %d tick | 增益: %d tick",
+                                                    data.getDistinctElementCount(), data.getGroupOverflow(),
+                                                    data.getDetonateCooldown(), data.getChainBuffTicks())));
+                                            return 1;
+                                        })
+                                )
+                                .then(Commands.literal("clear")
+                                        .executes(ctx -> {
+                                            Player player = ctx.getSource().getPlayerOrException();
+                                            IPlayerChainData data = PlayerChainCapability.get(player).orElse(null);
+                                            if (data != null) {
+                                                data.clearAll();
+                                            }
+                                            ctx.getSource().sendSuccess(() -> Component.literal("[连携] 已清空"), true);
                                             return 1;
                                         })
                                 )

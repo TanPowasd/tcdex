@@ -52,6 +52,7 @@ public class Tcdex {
         if (net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.CLIENT) {
             org.tp.tcdex.transcendence.TranscendenceKeybind.register();
             org.tp.tcdex.energy.ElementBurstKeybind.register();
+            org.tp.tcdex.chain.ChainKeybind.register();
         }
 
         // 所有外部 mod 联动 add 包（Tinkers / 冰火 / 铁魔法 / JEI 等）

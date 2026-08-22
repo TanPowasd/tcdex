@@ -8,6 +8,8 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.tp.tcdex.chain.ElementActionType;
+import org.tp.tcdex.chain.ElementCombatEvents;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
@@ -47,9 +49,10 @@ public class IronSpellsEvents {
         LivingEntity target = event.getEntity();
         LivingEntity source = sourceEntity instanceof LivingEntity living ? living : null;
 
-        // 玩家施法命中：获得元素能量
+        // 玩家施法命中：获得元素能量并计入连携链
         if (source instanceof Player player) {
             ElementEnergyManager.onPlayerAttack(player, element);
+            ElementCombatEvents.report(player, element, ElementActionType.SKILL, target);
         }
 
         // 触发元素反应 + 施加元素状态（即使被护盾吸收也会积累元素）

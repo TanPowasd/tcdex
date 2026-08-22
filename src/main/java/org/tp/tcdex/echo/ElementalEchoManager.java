@@ -9,7 +9,11 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import org.tp.tcdex.chain.ElementActionType;
+import org.tp.tcdex.chain.ElementCombatEvents;
 import org.tp.tcdex.damage.ModDamageSources;
+import java.util.HashSet;
+import java.util.Set;
 import org.tp.tcdex.element.ElementType;
 
 import java.util.ArrayList;
@@ -94,7 +98,29 @@ public final class ElementalEchoManager {
         for (ElementalEcho echo : detonated) {
             explodeEcho(level, echo, attacker);
         }
+        // 元素残响引爆计入玩家连携链
+        if (attacker instanceof Player player) {
+            Set<ElementType> elements = new HashSet<>();
+            for (ElementalEcho echo : detonated) {
+                elements.add(echo.element());
+            }
+            for (ElementType element : elements) {
+                ElementCombatEvents.report(player, element, ElementActionType.ECHO, null);
+            }
+        }
         return detonated.size();
+    }
+
+    /** 清除某范围附近的元素残响（用于原命崩解清场） */
+    public static void clearNear(Level level, net.minecraft.core.BlockPos pos, double radius) {
+        if (level.isClientSide) {
+            return;
+        }
+        List<ElementalEcho> list = ECHOES.get(level.dimension());
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        list.removeIf(echo -> echo.pos().distSqr(pos) <= radius * radius);
     }
 
     private static void explodeEcho(Level level, ElementalEcho echo, LivingEntity attacker) {

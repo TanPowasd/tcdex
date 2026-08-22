@@ -11,6 +11,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Config;
 import org.tp.tcdex.Tcdex;
+import org.tp.tcdex.chain.ChainEntry;
+import org.tp.tcdex.hud.ChainHud;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 
@@ -196,7 +198,46 @@ public class TcdexBuffHud {
             entries.add(new BuffEntry(name, element.getColor(), secondsText(status.duration)));
         }
 
+        // ===== 连携链 =====
+        if (!ChainHud.getMainChain().isEmpty()) {
+            entries.add(new BuffEntry(
+                    Component.literal("[连携] " + formatChain(ChainHud.getMainChain())),
+                    0xFFA78BFA,
+                    formatChainStatus()));
+        }
+        if (!ChainHud.getFocusChain().isEmpty()) {
+            entries.add(new BuffEntry(
+                    Component.literal("[焦点] " + formatChain(ChainHud.getFocusChain())),
+                    0xFF7FD8E6,
+                    ""));
+        }
+
         return entries;
+    }
+
+    private static String formatChain(List<ChainEntry> chain) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < chain.size(); i++) {
+            if (i > 0) {
+                sb.append(" → ");
+            }
+            sb.append(chain.get(i).element().getId());
+        }
+        return sb.toString();
+    }
+
+    private static String formatChainStatus() {
+        StringBuilder sb = new StringBuilder();
+        if (ChainHud.getChainBuffTicks() > 0) {
+            sb.append("增益 ").append(secondsText(ChainHud.getChainBuffTicks()));
+        }
+        if (ChainHud.getDetonateCooldown() > 0) {
+            if (sb.length() > 0) {
+                sb.append(" ");
+            }
+            sb.append("冷却 ").append(secondsText(ChainHud.getDetonateCooldown()));
+        }
+        return sb.toString();
     }
 
     /** tick → "Xs"（向上取整秒） */

@@ -11,6 +11,8 @@ import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.mastery.ElementalMasteryManager;
 import org.tp.tcdex.modifier.elemental.ElementStatus;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
+import org.tp.tcdex.chain.ElementActionType;
+import org.tp.tcdex.chain.ElementCombatEvents;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.player.reaction.PlayerReactionModifiersCapability;
 
@@ -217,6 +219,11 @@ public final class ElementReactionEngine {
             if (effective.getApplyElement() != null) {
                 IElementalEntity.of(target).addElementState(
                         effective.getApplyElement(), effective.getApplyStacks(), effective.getApplyDuration());
+            }
+
+            // 元素反应计入连携链
+            if (source instanceof Player player) {
+                ElementCombatEvents.report(player, effective.getTriggerElement(), ElementActionType.REACTION, target);
             }
 
             dispatchReactionTriggered(source, target, effective);

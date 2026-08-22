@@ -18,6 +18,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.artifact.ArtifactManager;
+import org.tp.tcdex.chain.ElementActionType;
+import org.tp.tcdex.chain.ElementCombatEvents;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
 import org.tp.tcdex.echo.ElementalEchoManager;
@@ -120,6 +122,11 @@ public class ElementalDamageEvents {
             }
         }
 
+        // 连携系统：元素武器攻击计入玩家连携链
+        if (element != null) {
+            ElementCombatEvents.report(player, element, ElementActionType.MELEE, target);
+        }
+
         // 武器催化：元素攻击积累催化进度
         if (toolStack != null && element != null && TinkersBridgeHolder.isAvailable()) {
             TinkersBridgeHolder.get().addCatalystProgress(toolStack, 1);
@@ -208,6 +215,10 @@ public class ElementalDamageEvents {
         // 伤害打入护盾（按效率换算），返回溢出
         float overflow = targetData.consumeShield(amount * efficiency);
         if (overflow > 0) {
+            // 连携系统：元素破盾计入玩家连携链
+            if (attackElement != null) {
+                ElementCombatEvents.report(player, attackElement, ElementActionType.SHIELD_BREAK, target);
+            }
             // 破盾：爆炸 + 目标获得护盾元素状态（破盾 hook 可调整爆炸伤害/触发联动）
             float breakDamage = target.getMaxHealth() * BREAK_HEALTH_PERCENT;
             breakDamage = dispatchShieldBreak(tool, target, shieldElement, breakDamage, player);
@@ -275,6 +286,10 @@ public class ElementalDamageEvents {
         boolean prismAttack = attackElement == ElementType.PRISM;
         float overflow = targetData.consumeShield(amount * efficiency, prismAttack);
         if (overflow > 0) {
+            // 连携系统：元素破盾计入玩家连携链
+            if (attackElement != null) {
+                ElementCombatEvents.report(player, attackElement, ElementActionType.SHIELD_BREAK, target);
+            }
             // 破盾：爆炸 + 目标获得棱镜状态（破盾 hook 可调整爆炸伤害/触发联动）；元素攻击保留（分配时固化）
             float breakDamage = target.getMaxHealth() * BREAK_HEALTH_PERCENT;
             breakDamage = dispatchShieldBreak(tool, target, ElementType.PRISM, breakDamage, player);

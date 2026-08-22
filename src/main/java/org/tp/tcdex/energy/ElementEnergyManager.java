@@ -14,6 +14,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.tp.tcdex.artifact.ArtifactManager;
+import org.tp.tcdex.chain.ElementActionType;
+import org.tp.tcdex.chain.ElementCombatEvents;
+
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.element.ElementManager;
@@ -128,10 +131,12 @@ public final class ElementEnergyManager {
         if (TranscendenceManager.isReady(player)) {
             TranscendenceManager.tryActivate(player, now);
             setEnergy(player, 0.0f);
+            ElementCombatEvents.report(player, ElementType.PRISM, ElementActionType.BURST);
             applyPrismaticBurst(player);
             return true;
         }
         setEnergy(player, 0.0f);
+        ElementCombatEvents.report(player, element, ElementActionType.BURST);
         applyBurst(player, element);
         return true;
     }

@@ -129,6 +129,9 @@ public class ModLanguageProvider extends LanguageProvider {
         add("hud.tcdex.transcendence.ready", "Transcendence Ready");
         add("key.tcdex.transcendence", "Activate Transcendence");
         add("key.tcdex.element_burst", "Activate Element Burst");
+        add("key.tcdex.chain_smart", "Smart Chain Action");
+        add("key.tcdex.chain_detonate", "Detonate Chain");
+        add("key.tcdex.chain_finisher", "Chain Finisher");
         add("key.categories.tcdex", "TCDEX");
         add("hud.tcdex.all_permitted.yun", "All Permitted");
         add("hud.tcdex.all_permitted.xu", "Nothing is True");
@@ -270,6 +273,9 @@ public class ModLanguageProvider extends LanguageProvider {
         add("hud.tcdex.transcendence.ready", "超越就绪");
         add("key.tcdex.transcendence", "激活超越");
         add("key.tcdex.element_burst", "释放元素爆发");
+        add("key.tcdex.chain_smart", "智能连携");
+        add("key.tcdex.chain_detonate", "连携引爆");
+        add("key.tcdex.chain_finisher", "命定终结");
         add("key.categories.tcdex", "TCDEX");
         add("hud.tcdex.all_permitted.yun", "万事皆允");
         add("hud.tcdex.all_permitted.xu", "万物皆虚");

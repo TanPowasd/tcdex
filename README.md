@@ -1,64 +1,80 @@
-# TCDEX（原命2）
+# TCDEX（原命）
 
-**原神 × 命运2 融合风格模组（含 Tinkers Construct 软联动 Add 包）** — Forge 1.20.1
+> **Forge 1.20.1** 模组  
+> 定位：**原神 × 命运2 融合**，并逐步加入属于“原命”自己的原创机制。
 
-TCDEX 核心不强制依赖 Tinkers Construct；检测到 Tinkers 时自动启用匠魂词条、光等、元素武器等联动内容。在安装 Tinkers 时，本模组为匠魂工具/盔甲加入 **原神式元素反应** 与 **命运2 风格核心系统**：
-
-- **元素充能**：武器打上「元素充能」词条后随机获得一种元素（烈日/电弧/虚空/冰影/缚丝/沉星/岚流），永久固化，攻击伤害从动能转化为元素伤害
-- **元素反应**：原神式附着量/消耗模型，支持控制、伤害、增幅、护盾、扩散五类反应；与命运2 关键词共存
-- **元素关键词**：灼烧 DoT→引爆、减速→冻结→粉碎、挥发爆炸、连锁闪电、削弱——全部由怪物身上的元素状态驱动（Mixin 注入）
-- **元素护盾**：敌对生物生成时随机携带元素护盾（匹配元素 ×2 破盾效率，打穿触发破盾爆炸）
-- **光等系统**：命运2 风格光等（世界光等场 + 时间压力蔓延 + 伤害修正）
-- **玩家护盾**：脱战自动回复的护盾层 + 命运2 风格 HUD（蓝色护盾条、buff 列表）
-- **元素精通**：新增词条强化元素反应伤害/范围/冷却/附着消耗
-- **元素能量 / 元素爆发**：单一通用能量条，攻击/击杀/受击充能，能量满后按 X 释放七元素各自爆发
-
-本文档面向**其他附属模组开发者**，说明如何通过 TCDEX 的 API 与 Hook 体系扩展本模组。
+TCDEX 以原神式元素反应为战斗核心，以命运2 式光等、护盾、武器构筑为成长框架，同时接入 Tinkers Construct、冰与火、铁魔法等外部 Mod 的软联动。
 
 ---
 
-## 0. 软依赖 / Add 包架构
+## 目录
 
-TCDEX 核心不强制依赖 Tinkers / 冰火 / 铁魔法；当前仅 Curios（圣遗物槽位）仍为强制依赖，后续可改软。所有外部 mod 联动均为 add 包：
+- [核心系统](#核心系统)
+- [元素体系](#元素体系)
+- [元素反应](#元素反应)
+- [光等与成长](#光等与成长)
+- [玩家机制](#玩家机制)
+- [软依赖 / Add 包架构](#软依赖--add-包架构)
+- [开发者 API](#开发者-api)
+- [配置总览](#配置总览)
+- [开发与构建](#开发与构建)
+- [常见问题](#常见问题)
+- [后续自创机制方向](#后续自创机制方向)
 
-| 外部 mod | add 包 | 状态 |
+---
+
+## 核心系统
+
+| 系统 | 来源参考 | 说明 |
 |---|---|---|
-| Tinkers Construct | `integration.tinkers` | 已迁移，`tconstruct` / `mantle` 为 `mandatory=false` |
-| Ice and Fire | `integration.iceandfire` | 可选 |
-| Iron's Spellbooks | `integration.irons_spellbooks` | 可选 |
+| 元素附着 / 元素反应 | 原神 | 目标身上有元素附着，使用另一种元素触发反应 |
+| 元素关键词 | 命运2 | 灼烧、冻结、Volatile、Jolt、Sever、Refract 等状态效果 |
+| 元素护盾 | 命运2 | 怪物携带元素护盾，破盾效率与攻击元素相关 |
+| 光等系统 | 命运2 | 世界光等场、维度/群系偏移、时间压力、伤害修正 |
+| 玩家护盾 | 命运2 | 脱战自动回复的蓝色护盾层 |
+| 元素能量 / 爆发 | 原神 | 攻击/击杀/受击充能，满能量释放元素爆发 |
+| 超越系统 | 原神 × 命运2 | 光暗双能量，接近原创“子职业”机制 |
+| 失衡 / 破绽 | 原创 | 积累失衡值，破绽后进入处决/易伤窗口 |
+| 元素残响 | 原创 | 元素攻击留下残响，可被后续攻击引爆 |
+| 元素适应 | 原创 | 怪物会逐渐适应当前常用元素 |
+| 圣遗物 | 原神 | Curios 槽位 + 属性加成 |
+| Tinkers 词条 | 命运2 × 匠魂 | 武器元素化、光等、催化、元素精通等 |
+
+---
+
+## 软依赖 / Add 包架构
+
+TCDEX 核心不强制依赖任何外部 Mod。当前除 Curios（圣遗物槽位）外，其余外部联动均为可选 Add 包。
+
+| 外部 Mod | Add 包 | 状态 |
+|---|---|---|
+| Tinkers Construct | `integration.tinkers` | 已实现，`tconstruct` / `mantle` 为可选 |
+| Ice and Fire | `integration.iceandfire` | 已实现，可选 |
+| Iron's Spellbooks | `integration.irons_spellbooks` | 已实现，可选 |
 | JEI | `integration.jei` | 计划中 |
-| Curios | 圣遗物槽位 | 当前仍为 `mandatory=true`，后续可改软 |
+| Curios | `integration.curios` | 当前仍为强制依赖，后续可改软 |
 
-未安装对应 mod 时，对应 add 包不会初始化；Core 只通过 `ITinkersBridge` / `TinkersBridgeHolder` 与 Tinkers 交互，不直接引用 `slimeknights` 类。
+未安装对应 Mod 时，对应 Add 包不会初始化，不会影响 TCDEX 核心功能。
 
-### 0.1 统一 Add 包注册 API
+### 统一 Add 包生命周期
 
-TCDEX 提供一套多 mod 统一化工具，用于统一注册与管理外部联动 Add 包：
+所有外部联动通过统一接口注册：
 
-- `ITcdexIntegration`：统一生命周期接口，包含 `shouldLoad()`、`init()`、`onCommonSetup()`、`onServerStarting()`、`onServerStopping()`
-- `TcdexIntegrationRegistry`：统一注册中心，可查询已注册 / 已活跃的 Add 包
-- `TcdexIntegrationBuilder`：流式 Builder，适合快速注册轻量联动
+- `ITcdexIntegration`
+- `TcdexIntegrationRegistry`
+- `TcdexIntegrationBuilder`
 
 ```java
 TcdexIntegrationBuilder.builder("mymod")
         .displayName("My Mod")
         .shouldLoad(() -> ModList.get().isLoaded("mymod"))
-        .onInit(bus -> {
-            // 注册事件、桥接、词条等
-        })
-        .onCommonSetup(event -> {
-            // 跨 mod 初始化
-        })
-        .onServerStarting(event -> {
-            // 服务端启动
-        })
+        .onInit(bus -> { /* 注册事件、桥接 */ })
+        .onCommonSetup(event -> { /* 跨 Mod 初始化 */ })
+        .onServerStarting(event -> { /* 服务端启动 */ })
         .register();
 ```
 
-也可以直接实现 `ITcdexIntegration` 后通过 `TcdexIntegrationRegistry.register(...)` 注册。
-内置的 Tinkers / 冰火 / 铁魔法 Add 包都走同一套注册与生命周期管理。
-
-查询当前已加载的联动：
+查询当前活跃联动：
 
 ```java
 List<ITcdexIntegration> active = TcdexIntegrationRegistry.getActive();
@@ -67,48 +83,168 @@ boolean hasTinkers = TcdexIntegrationRegistry.isModIntegrated("tconstruct");
 
 ---
 
+## 元素体系
 
-## 目录
+### 元素类型
 
-- [0. 软依赖 / Add 包架构](#0-软依赖--add-包架构)
-- [1. 作为依赖引入](#1-作为依赖引入)
-- [2. 元素系统 API](#2-元素系统-api)
-- [3. 光等系统 API](#3-光等系统-api)
-- [4. 词条 Hook 开发](#4-词条-hook-开发)
-  - [4.1 全能词条基类 TcdexBaseModifier](#41-全能词条基类-tcdexbasemodifier)
-  - [4.2 击杀 Hook（KILLING_HOOK）](#42-击杀-hookkilling_hook)
-  - [4.3 元素攻击 Hook（ELEMENTAL_ATTACK）](#43-元素攻击-hookelemental_attack)
-  - [4.4 注册自定义 ModuleHook（扩展模式）](#44-注册自定义-modulehook扩展模式)
-- [5. 实体元素状态接口 IElementalEntity](#5-实体元素状态接口-ielementalentity)
-- [6. 元素类型与关键词总览](#6-元素类型与关键词总览)
-- [7. 配置总览](#7-配置总览)
-- [8. 纹理生成器（流体 / 材料图标）](#8-纹理生成器流体--材料图标)
-- [9. 常见问题](#9-常见问题)
+TCDEX 当前包含以下元素：
+
+| 元素 | 英文 ID | 定位 |
+|---|---|---|
+| 烈日 | `solar` | 灼烧 DoT、引爆、高伤害 |
+| 电能 | `arc` | 连锁闪电、致盲、增幅 |
+| 虚空 | `void` | Volatile 爆炸、Weaken、Devour |
+| 冰影 | `stasis` | 减速、冻结、Shatter |
+| 缚丝 | `strand` | 削弱、悬挂、织甲 |
+| 月 | `moon` | 月蚀标记、暗影伤害、特殊反应 |
+| 罡流 | `mistflow` | 扩散、位移、聚怪 |
+| 水 | `tide` | 潮湿、反应媒介 |
+| 落星 | `sinkstar` | 重力、聚怪、结晶护盾 |
+| 棱镜 | `prism` | Boss 专属特殊元素，强化反应 |
+
+### 元素关键词
+
+元素状态不只用于反应，也会触发命运2 风格关键词：
+
+| 关键词 | 效果 |
+|---|---|
+| 灼烧 | 持续 DoT，满层引爆 |
+| 冻结 | 减速至冻结，冻结中受击 Shatter 增伤 |
+| Volatile | 虚空标记受击爆炸 |
+| Jolt | 电弧连锁闪电并致盲 |
+| Sever | 带缚丝标记的敌人造成伤害降低 |
+| Weaken | 带虚空标记目标受到的伤害提高 |
+| Refract | 棱镜标记受击折射溅射 |
+| 月蚀 | 月标记持续暗影伤害，可被光能净化 |
 
 ---
 
-## 1. 作为依赖引入
+## 元素反应
 
-TCDEX 核心 API 不依赖 Tinkers Construct（当前 Curios 仍为 TCDEX 的强制依赖）。如果你的附属 mod **只使用 TCDEX 核心 API**，不需要在构建脚本里额外声明 Tinkers。
+### 反应模型
 
-**build.gradle**：
+TCDEX 使用原神式“附着量 / 消耗 / 冷却”模型：
+
+1. 元素攻击会给目标叠加元素附着量。
+2. 当目标已有元素 A，再次受到元素 B 攻击时，尝试查找 A+B 反应。
+3. 如果满足附着量、冷却、催化剂等条件，则消耗附着并触发反应。
+4. 反应由 `ElementReactionModule` 执行，支持伤害、控制、增幅、护盾、扩散五类。
+
+### 反应类型
+
+| 类型 | 说明 |
+|---|---|
+| `DAMAGE` | 造成额外伤害，可带小范围 AOE |
+| `CONTROL` | 减速、虚弱、停止寻路、击退/聚怪等 |
+| `AMPLIFY` | 给攻击者提供伤害增益 |
+| `SHIELD` | 给攻击者/目标提供临时吸收盾 |
+| `DIFFUSION` | 把元素扩散到周围敌人 |
+
+### 默认反应覆盖
+
+默认反应表已覆盖全部 **45 个无序元素组合**，并包含两个高优先级三元反应：
+
+- 月 + 虚空 + 落星 → 月结晶（护盾）
+- 月 + 电能 + 水 → 月感电（伤害）
+
+所有二元反应会自动注册反向，因此任意顺序触发都能生效。自定义反应可通过 `TcdexReactionAPI.registerReaction(...)` 动态注册。
+
+### 反应优先级
+
+- 每个反应都可设置 `priority`。
+- 同一目标身上有多种可反应元素时，引擎按优先级从高到低选择。
+- 优先级相同时，选择附着量更高的元素。
+- 三元反应和棱镜强化反应默认拥有较高优先级。
+
+### 反应数值调整
+
+反应触发后会经过一套完整的数值修正管线：
+
+```text
+基础反应数值
+  → Tinkers REACTION Hook
+  → 武器催化
+  → 元素精通
+  → 模块 modifyDamage / modifyDuration / modifyRadius
+  → 实际生效数值
+```
+
+因此元素精通、匠魂词条和武器催化都会真实影响反应强度。
+
+---
+
+## 光等与成长
+
+### 光等系统
+
+命运2 风格光等，用于修正玩家与怪物之间的伤害倍率。
+
+- 每个匠魂工具/盔甲会根据材料阶级、强化等级和灌注计算光等。
+- 普通武器有统一的基础光等。
+- 怪物有基础光等，并按世界光等场、维度、群系、距离、时间压力动态调整。
+- 光等差距会修正：
+  - 玩家对怪物造成的伤害；
+  - 怪物对玩家造成的伤害。
+
+### 成长路线
+
+- 光等：提升装备、灌注“光之精华”、探索高光等区域。
+- 元素精通：提升元素反应伤害、范围、持续，并降低冷却和附着消耗。
+- 圣遗物：提供属性、光等、元素精通、充能效率、护盾加成。
+- 元素能量：通过攻击、击杀、受击充能，满能量释放元素爆发。
+
+---
+
+## 玩家机制
+
+| 机制 | 说明 |
+|---|---|
+| 玩家护盾 | 脱离战斗后自动快速回复，可被元素状态削弱回复速度 |
+| 元素能量 | 单一通用能量条，满 100 后释放当前武器元素爆发 |
+| 超越 | 光/暗双能量，激活后临时增强攻击，并可配合元素爆发触发棱镜融合爆发 |
+| 失衡 / 破绽 | 战斗中积累失衡值，满值进入破绽窗口 |
+| 元素残响 | 元素攻击留下残响，可引爆造成额外伤害 |
+| 元素适应 | 怪物会逐渐抵抗频繁使用的元素 |
+| HUD | 玩家护盾条、Buff 列表、元素能量条、怪物护盾/元素附着显示 |
+
+### 调试指令
+
+TCDEX 提供以下调试指令：
+
+```text
+/tcdex debug element on|off         元素伤害/护盾系统调试输出
+/tcdex debug reaction on|off        元素反应触发调试输出
+/tcdex getlight                     查询玩家与准星目标光等
+/tcdex setlight <value>             设置主手匠魂装备光等
+/tcdex setlooklight <value>         设置准星目标怪物光等
+/tcdex setelement <element>         设置主手元素充能武器元素
+/tcdex element                      查看准星目标护盾与元素状态
+```
+
+开启 `reaction` 调试后，每次触发反应会在相关玩家聊天中显示类似：
+
+```text
+[TCDEX反应] solar+tide -> DAMAGE | 目标: Zombie
+[TCDEX反应] moon+void+sinkstar -> SHIELD | 目标: Ender Dragon
+```
+
+---
+
+## 开发者 API
+
+TCDEX 提供面向附属 Mod 的公开 API，核心 API 不依赖 Tinkers Construct。
+
+### 作为依赖引入
 
 ```groovy
 repositories {
-    // 本地 libs 目录（将 TCDEX jar 放入你的 mod 的 libs/ 文件夹）
     flatDir { dir 'libs' }
 }
 
 dependencies {
-    implementation fg.deobf("org.tp:tcdex:${tcdex_version}")  // 或具体版本，如 1.0.0
-
-    // 如果你要开发 Tinkers 词条 / 使用 integration.tinkers 下的类，才需要额外声明：
-    // implementation fg.deobf("curse.maven:tinkers-construct-74072:7449219")
-    // implementation fg.deobf("curse.maven:mantle-74924:7563777")
+    implementation fg.deobf("org.tp:tcdex:${tcdex_version}")
 }
 ```
-
-**mods.toml**（软依赖，TCDEX 未安装时你的 mod 应降级功能）：
 
 ```toml
 [[dependencies.yourmodid]]
@@ -117,8 +253,11 @@ mandatory = false
 versionRange = "[1.0.0,)"
 ordering = "NONE"
 side = "BOTH"
+```
 
-# 只有使用 Tinkers 词条 / Hook 时才需要，且同样为可选：
+如果使用 Tinkers 词条/Hook，再额外声明：
+
+```toml
 [[dependencies.yourmodid]]
 modId = "tconstruct"
 mandatory = false
@@ -134,222 +273,161 @@ ordering = "NONE"
 side = "BOTH"
 ```
 
-代码中判断 TCDEX 是否加载：
+### 元素 API
+
+入口：`org.tp.tcdex.api.TcdexElementAPI`
+
+常用功能：
 
 ```java
-public static final boolean TCDEX_LOADED = ModList.get().isLoaded("tcdex");
-```
+// 注册自定义护盾提供器
+TcdexElementAPI.registerShieldProvider(entity -> ElementType.ARC);
 
----
+// 护盾黑名单
+TcdexElementAPI.addShieldBlacklist("minecraft:slime");
 
-## 2. 元素系统 API
-
-入口：`org.tp.tcdex.api.TcdexElementAPI`（静态方法，TCDEX 加载后可直接调用）。
-
-### 2.1 自定义护盾提供器
-
-想让特定生物（含其他 mod 生物）固定获得/获得指定元素的护盾：
-
-```java
-public class MyCompat {
-    public static void init() {
-        TcdexElementAPI.registerShieldProvider(entity -> {
-            // 返回 null = 不接管（交给黑名单/加权随机）
-            if (entity.getType() == Registries.ENTITY_TYPES.get(new ResourceLocation("twilightforest:naga"))) {
-                return ElementType.ARC;  // 娜迦固定电弧盾
-            }
-            return null;
-        });
-    }
-}
-```
-
-分配优先级：**黑名单（绝对无盾）→ 提供器 → 加权随机**（无静态表指定）。
-
-### 2.2 护盾黑名单（不让某些生物带盾）
-
-```java
-TcdexElementAPI.addShieldBlacklist("minecraft:slime");   // entity id，兼容任意 mod 生物
-TcdexElementAPI.removeShieldBlacklist("minecraft:slime");
-boolean noShield = TcdexElementAPI.isShieldBlacklisted(entity);   // 黑名单生物同时没有元素攻击
-```
-
-### 2.3 生成比例（运行时调整）
-
-```java
-// 护盾元素权重（0 = 不生成该元素盾）
+// 权重
 TcdexElementAPI.setShieldWeight(ElementType.SOLAR, 3);
-Map<ElementType, Integer> shieldWeights = TcdexElementAPI.getShieldWeights();
-
-// 元素充能随机元素权重（0 = 词条不会随机到该元素）
 TcdexElementAPI.setElementWeight(ElementType.VOID, 2);
-Map<ElementType, Integer> elementWeights = TcdexElementAPI.getElementWeights();
-```
 
-### 2.4 读取/写入实体元素数据
-
-```java
+// 读取实体元素数据
 IElementalEntity data = TcdexElementAPI.getEntityElementData(entity);
+data.addElementState(ElementType.SOLAR, 25, 100);
 
-// 读取
-float stacks = data.getElementStacks(ElementType.SOLAR);   // 灼烧层数
-int duration = data.getElementDuration(ElementType.VOID);  // 剩余 tick
-ElementType shield = data.getShieldElement();              // 护盾元素（null=无）
-float shieldAmount = data.getShieldAmount();               // 剩余护盾值
-
-// 写入（例如你的 mod 给怪物施加灼烧）
-data.addElementState(ElementType.SOLAR, 25, 100);          // +25 层，100 tick
-
-// 直接扣护盾（返回溢出伤害）
-float overflow = data.consumeShield(damage);
-data.destroyShield();
-```
-
-### 2.5 查询 / 注册元素抗性
-
-```java
-float resistance = TcdexElementAPI.getResistance(entity, ElementType.VOID);
-// 1.0 正常 / >1 弱点（受更多伤害） / <1 抗性
-
-// Add 包可注册额外抗性/弱点（优先级低于配置文件，玩家配置可覆盖）
+// 查询/注册抗性
+TcdexElementAPI.getResistance(entity, ElementType.VOID);
 TcdexElementAPI.registerResistance("iceandfire:fire_dragon", ElementType.SOLAR, 0.3f);
-TcdexElementAPI.registerResistance("iceandfire:fire_dragon", ElementType.STASIS, 1.8f);
-```
 
-### 2.6 使用 TCDEX 元素伤害类型
-
-```java
-// 动能 / 元素 / 纯粹 / 灼烧 DoT 伤害源（均为服务端权威类型）
-DamageSource kinetic = ModDamageSources.kinetic(attacker);
+// 元素伤害
 DamageSource solar = ModDamageSources.element(attacker, ElementType.SOLAR);
-DamageSource pure = ModDamageSources.pure(attacker);
-DamageSource scorch = ModDamageSources.scorch(entity);   // 无视无敌帧的 DoT
-
-boolean isElemental = ModDamageSources.isElementDamage(source);
 ```
 
-> ⚠️ 元素伤害类型与护盾/转化系统联动：对带护盾目标使用元素伤害源，会按"匹配/不匹配"效率结算破盾。
+### 元素反应 API
 
-### 2.7 元素怪物攻击（命中玩家施加元素状态）
-
-**元素的攻击与护盾同源分配**：任何带元素护盾的怪物（护盾分配链：黑名单 → 提供器 → 加权随机，
-无静态表指定），其攻击命中玩家时也会施加与护盾**相同元素**的状态（冰霜箭减速/冻结、
-电弧光束、虚空火球……）。攻击元素在护盾分配时**固化**：无盾生物没有元素攻击，
-**护盾被打破后元素攻击保留**（只失去护盾，不失去元素能力）。
-
-命中玩家时按 `monsterElementalAttackChance`（默认 1.0，配置可调）施加对应元素状态
-（层数按怪物系数缩放，标记型元素保底 1 层；时长同玩家武器），元素状态会同步到玩家 Buff HUD，
-Shatter / Volatile / Weaken / Jolt 等关键词对玩家同样生效。总开关 `monsterElementalAttacks`（默认 true）。
+入口：`org.tp.tcdex.api.TcdexReactionAPI`
 
 ```java
-// 查询怪物的元素攻击类型（= 其护盾元素，null = 无）
-ElementType attack = TcdexElementAPI.getMonsterAttackElement(entity);
+// 注册自定义反应（自动双向）
+TcdexReactionAPI.registerReaction(
+        ElementReaction.builder(ElementType.SOLAR, ElementType.ARC, ReactionType.DAMAGE)
+                .damage(10f)
+                .radius(2f)
+                .cooldown(40)
+                .priority(50)
+                .build());
+
+// 查询 / 注销
+ElementReaction reaction = TcdexReactionAPI.findReaction(ElementType.SOLAR, ElementType.ARC);
+TcdexReactionAPI.unregisterReaction(ElementType.SOLAR, ElementType.ARC);
+
+// 手动触发
+TcdexReactionAPI.triggerReaction(target, ElementType.SOLAR, ElementType.ARC, player);
+
+// 附着量
+TcdexReactionAPI.addAura(target, ElementType.SOLAR, 1.0f, 100);
+float aura = TcdexReactionAPI.getAura(target, ElementType.SOLAR);
+TcdexReactionAPI.consumeAura(target, ElementType.SOLAR, 1.0f);
 ```
 
-### 2.8 棱镜盾（凋零 / 末影龙 100%）
+### 光等 API
 
-凋零与末影龙生成时**必定**携带棱镜护盾（内置护盾提供器，护盾量 = 最大生命 × 50%），棱镜盾效果：
-
-| 伤害类型 | 护盾磨损（破盾速度） | 说明 |
-|---|---|---|
-| 棱镜伤害 | ×2 效率（快） | 匹配元素 |
-| 其他元素伤害 | ×0.5 效率（慢） | 对应"50% 减免"：盾承伤翻倍 |
-| 动能伤害 | ×0.1 效率（最慢） | 对应"90% 减免"：盾承伤 ×10 |
-| 脱战回复 | 10 秒未受伤后，每 5 tick 回复 10% 最大护盾值 | |
-
-棱镜盾是**吸收型**护盾：破盾前所有伤害被盾**完全吸收**（按上表效率磨损护盾），**打不到血量**——
-例如 150 点棱镜盾，20 点虚空伤害 ×0.5 = 磨损 10/击，正好 **15 击打破**。
-
-打穿结算区分来源：
-- **棱镜伤害打穿**（来自专属词条「棱镜共鸣」，见 §4.5）→ 护盾**永久失效**（清除护盾元素，不再回复）
-- **非棱镜伤害打穿** → 护盾元素保留，**脱战 10 秒后仍会回复**（每 5 tick 10%，重新长满）
-
-破盾后（盾值 0 期间）伤害正常打到血量；Boss 的**元素攻击保留**（攻击元素在分配时固化，不随护盾消失）。
-磨损效率、减免与回复参数全部可在配置中调整（`prismShield*` 系列）。
-
-### 2.9 外部 mod 软联动（不作为前置依赖）
-
-所有外部 mod 联动均采用 add 包 + `mods.toml` `mandatory = false`，未安装对应 mod 时自动跳过，零类引用零风险：
-
-| Mod | add 包 | 联动内容 |
-|---|---|---|
-| **匠魂 3** `tconstruct` | `integration.tinkers` | 元素充能 / 棱镜共鸣 / 五项之力词条、匠魂光等、武器催化、元素精通、全部 Tinkers Hook |
-| **冰与火之舞** `iceandfire` | `integration.iceandfire` | 更多冰火生物获得元素盾/攻击（龙、火灵、海蛇、九头蛇、幽灵等）；龙类等拥有元素抗性与弱点；龙息/龙爪等冰火伤害对任意目标触发元素反应、施加状态、参与元素护盾破盾，玩家被命中时获得元素能量 |
-| **铁魔法** `irons_spellbooks` | `integration.irons_spellbooks` | 法术命中元素化覆盖火/冰/雷/虚空/自然/风/重力/圣光等；任意目标都会施加元素状态并触发元素反应；元素法术参与元素护盾破盾；玩家施法命中时获得元素能量 |
-
-> 这些 mod 均未安装时：Tinkers 词条不注册、护盾提供器不注册、法术事件按实体注册名匹配自然不命中，不影响 TCDEX 本体任何功能。
-
----
-
-## 3. 光等系统 API
-
-入口：`org.tp.tcdex.api.TcdexAPI`。
+入口：`org.tp.tcdex.api.TcdexAPI`
 
 ```java
-// 物品光等（匠魂物品 + 已注册自定义物品）
 int light = TcdexAPI.getItemLightLevel(stack);
 TcdexAPI.setItemLightLevel(stack, 60);
 
-// 实体（怪物）光等
 int entityLight = TcdexAPI.getEntityLightLevel(entity);
 TcdexAPI.setEntityLightLevel(entity, 40);
 
-// 玩家光等（护甲平均 / 武器 / 攻击 = (4盔甲+武器)/5）
-int armor = TcdexAPI.getPlayerArmorLightLevel(player);
-int weapon = TcdexAPI.getPlayerWeaponLightLevel(player);
 int attack = TcdexAPI.getPlayerAttackLightLevel(player);
 ```
 
-### 3.1 注册自定义光等提供器
-
-让非匠魂物品/实体参与光等计算：
+附属 Mod 也可以注册自定义光等提供器：
 
 ```java
-// 物品：返回物品光等（返回 false 表示不接管）
 TcdexAPI.registerItemLightLevelProvider(new IItemLightLevelProvider() {
-    @Override public boolean canProvide(ItemStack stack) { return stack.is(MyItems.MY_WEAPON.get()); }
+    @Override public boolean canProvide(ItemStack stack) { return true; }
     @Override public int getLightLevel(ItemStack stack) { return 30; }
-    @Override public void setLightLevel(ItemStack stack, int value) { /* 写入你的 NBT */ }
+    @Override public void setLightLevel(ItemStack stack, int value) { }
 });
+```
 
-// 实体
-TcdexAPI.registerEntityLightLevelProvider(new IEntityLightLevelProvider() { ... });
+### 实体元素状态
 
-// 伤害修正：自定义光等差 → 伤害倍率规则
-TcdexAPI.registerDamageModifierProvider(new IDamageModifierProvider() {
-    @Override public float modifyDealtDamage(float multiplier, int attackerLight, int defenderLight) { return multiplier * 1.1f; }
-    @Override public float modifyTakenDamage(float multiplier, int attackerLight, int defenderLight) { return multiplier; }
-});
+所有 `LivingEntity` 都通过 Mixin 注入 `IElementalEntity`：
+
+```java
+IElementalEntity data = IElementalEntity.of(entity);
+
+float stacks = data.getElementStacks(ElementType.SOLAR);
+int duration = data.getElementDuration(ElementType.SOLAR);
+data.addElementState(ElementType.SOLAR, 25, 100);
+data.clearElementState(ElementType.SOLAR);
+
+ElementType shield = data.getShieldElement();
+float shieldAmount = data.getShieldAmount();
+float overflow = data.consumeShield(damage);
+```
+
+### 元素反应模块扩展
+
+`ElementReactionModule` 提供完整扩展点：
+
+```java
+public class MyReactionModule implements ElementReactionModule {
+    @Override
+    public ElementReaction getReaction() { return myReaction; }
+
+    @Override
+    public boolean canTrigger(ReactionContext context) { return true; }
+
+    @Override
+    public void onTrigger(ReactionContext context) {
+        ElementReaction effective = context.getReaction();
+        // 使用 effective 获取调整后的数值
+    }
+
+    @Override
+    public float modifyDamage(ReactionContext context, float damage) { return damage * 1.2f; }
+    @Override
+    public int modifyDuration(ReactionContext context, int duration) { return duration; }
+    @Override
+    public float modifyRadius(ReactionContext context, float radius) { return radius; }
+    @Override
+    public float modifyIntensity(ReactionContext context, float intensity) { return intensity; }
+    @Override
+    public int modifyCooldown(ReactionContext context, int cooldown) { return cooldown; }
+    @Override
+    public float modifyAuraCost(ReactionContext context, float auraCost) { return auraCost; }
+}
+```
+
+注册自定义模块：
+
+```java
+TcdexReactionAPI.registerReactionModule(new MyReactionModule());
 ```
 
 ---
 
-## 4. 词条 Hook 开发
+### Tinkers Construct 词条 / Hook
 
-> 注意：Tinkers 词条 / Hook / 工具类均已迁移到 `org.tp.tcdex.integration.tinkers` 包下（例如 `...modifier.base.TcdexBaseModifier`、`...modifier.hook.TcdexHooks`）。以下示例为简洁省略 import，实际开发时请使用新包名。
+Tinkers 联动位于 `org.tp.tcdex.integration.tinkers`。
 
-### 4.1 全能词条基类 TcdexBaseModifier
+#### TcdexBaseModifier
 
-`org.tp.tcdex.integration.tinkers.modifier.base.TcdexBaseModifier` —— 对标 sakuratinker `BaseModifier` 的**全能基类**：
-- 一次性 implements **匠魂 3.11 全部 61 个原生 hook** + TCDEX 自定义 `KILLING_HOOK`
-- `registerHooks` 已全部注册，子类**无需写任何注册代码**
-- 所有 hook 方法委托为可覆写的 `modifierXxx()`（空实现/安全默认值）
+`TcdexBaseModifier` 一次性实现匠魂 3.11 大量原生 Hook 以及 TCDEX 自定义 Hook。附属 Mod 可以继承它并直接覆写 `modifierXxx()` 方法：
 
 ```java
 public class MyModifier extends TcdexBaseModifier {
 
-    public static void registerModifier(ModifierManager.ModifierRegistrationEvent event) {
-        event.registerStatic(new ModifierId("yourmodid", "my_modifier"), new MyModifier());
-    }
-
-    // 近战伤害 ×1.5
     @Override
     protected float modifierMeleeDamage(IToolStackView tool, ModifierEntry modifier,
                                         ToolAttackContext context, float baseDamage, float damage) {
         return damage * 1.5f;
     }
 
-    // 命中附加状态
     @Override
     protected void modifierAfterMeleeHit(IToolStackView tool, ModifierEntry modifier,
                                          ToolAttackContext context, float damageDealt) {
@@ -358,458 +436,133 @@ public class MyModifier extends TcdexBaseModifier {
             IElementalEntity.of(target).addElementState(ElementType.SOLAR, 25, 100);
         }
     }
-
-    // 无等级词条（可选）：显示名不附带等级
-    @Override
-    public Component getDisplayName(int level) {
-        return super.getDisplayName();
-    }
 }
 ```
 
-注册（对照 TCDEX 主类模式）：
+#### TCDEX 自定义 Hook
 
-```java
-// 你的主类构造器
-modEventBus.addListener(MyModifier::registerModifier);
-```
-
-可用 `modifierXxx` 速查（按分组）：
-
-| 分组 | 可覆写方法 |
+| Hook | 用途 |
 |---|---|
-| armor | `modifierOnWalk` / `modifierIsDamageBlocked` / `modifierElytraFlightTick` / `modifierModifyDamageTaken` / `modifierOnAttacked` / `modifierGetProtectionModifier` / `modifierOnEquip/Unequip/EquipmentChange` |
-| behavior | `modifierAddAttributes` / `modifierUpdateEnchantmentLevel(s)` / `modifierIsRepairMaterial` / `modifierGetRepairAmount` / `modifierProcessLoot` / `modifierGetRepairFactor` / `modifierCanPerformAction` / `modifierOnDamageTool` |
-| build | `modifierModifyStat` / `modifierModifyCraftCount` / `modifierOnRemoved` / `modifierAddTraits` / `modifierAddRawData` / `modifierAddToolStats` / `modifierValidate` / `modifierAddVolatileData` |
-| combat | `modifierMeleeDamage` / `modifierBeforeMeleeHit` / `modifierAfterMeleeHit` / `modifierFailedMeleeHit` / `modifierOnMonsterMeleeHit` / `modifierOnDamageDealt` / `modifierUpdateLooting` / `modifierUpdateArmorLooting` |
-| display | `modifierGetDisplayName` / `modifierShowDurabilityBar` / `modifierGetDurabilityWidth/RGB` / `modifierDisplayModifiers` / `modifierRequirementsError` / `modifierAddTooltip` |
-| interaction | `modifierOnToolUse` / `modifierOnUsingTick` / `modifierOnStoppedUsing` / `modifierOnFinishUsing` / `modifierGetUseDuration` / `modifierGetUseAction` / `modifierOnInventoryTick` / `modifierStartInteract` / `modifierBefore/AfterBlockUse` / `modifierBefore/AfterEntityUse` / `modifierShouldHighlight` / `modifierOverrideStackedOnOther` / `modifierOverrideOtherStackedOnMe` |
-| mining | `modifierAfterBlockBreak` / `modifierStartHarvest` / `modifierFinishHarvest` / `modifierOnBreakSpeed` / `modifierModifyBreakSpeed` / `modifierUpdateHarvestEnchantments` / `modifierRemoveBlock` |
-| ranged | `modifierFindAmmo` / `modifierShrinkAmmo` / `modifierOnLauncherHitEntity/Block` / `modifierOnProjectileFuseFinish` / `modifierOnProjectileHitEntity/Block/HitsBlock` / `modifierOnProjectileLaunch` / `modifierOnProjectileShoot` / `modifierScheduleProjectileTask` / `modifierOnScheduledProjectileTask` |
-| special | `modifierAfterTransformBlock` / `modifierGetAmount/Capacity` / `modifierSetAmount` / `modifierAfterHarvest` / `modifierAfterShearEntity` / `modifierModifySlingAngle/Force` / `modifierAfterSlingLaunch` |
-| TCDEX | `modifierOnKillLivingTarget`（击杀）/ `modifierModifyBreakExplosion`、`modifierOnShieldBreak`（破盾）/ `modifierModifyAbsorbed`、`modifierModifyRegenRate`（玩家护盾）/ `modifierModifyBreakOverflow`、`modifierOnShieldBreak`（玩家护盾破碎）/ `modifierModifyStateStacks`、`modifierModifyStateDuration`（元素状态施加）/ `modifierModifyKeywordMultiplier`、`modifierModifyKeywordDamage`、`modifierModifyKeywordRadius`（元素关键词结算）/ `modifierModifyKineticDamage`、`modifierModifyKineticShieldEfficiency`（动能攻击） |
+| `KILLING_HOOK` | 工具击杀回调 |
+| `ELEMENTAL_ATTACK` | 调整元素伤害与破盾效率 |
+| `SHIELD_BREAK` | 怪物护盾破碎回调/爆炸 |
+| `PLAYER_SHIELD` | 调整玩家护盾吸收与回复 |
+| `PLAYER_SHIELD_BREAK` | 玩家护盾破碎溢出 |
+| `ELEMENTAL_STATE_APPLY` | 调整元素状态层数/时长 |
+| `ELEMENTAL_KEYWORD` | 调整关键词伤害/倍率/半径 |
+| `KINETIC_ATTACK` | 动能伤害与动能破盾 |
+| `REACTION` | 调整元素反应全部参数并回调 |
 
-### 4.2 击杀 Hook（KILLING_HOOK）
+#### 自定义 ModuleHook
 
-匠魂 3.11 **没有原生击杀 hook**，TCDEX 提供了自定义的（`TcdexHooks.KILLING_HOOK`，由 `org.tp.tcdex.integration.tinkers.event.TcdexHookEvents` 在 `LivingDeathEvent`(LOWEST) 派发，遍历攻击者双手工具）。
-
-```java
-public class ReaperModifier extends TcdexBaseModifier {
-
-    // 基类 registerHooks 已注册 KILLING_HOOK，无需再 addHook
-
-    @Override
-    protected void modifierOnKillLivingTarget(IToolStackView tool, LivingDeathEvent event,
-                                              LivingEntity attacker, LivingEntity target, int level) {
-        // 击杀结算：例如回复耐久 / 触发联动
-        if (event.getSource().getEntity() == attacker) {
-            // 只处理本工具造成的击杀
-        }
-    }
-}
-```
-
-> 不使用基类时，也可直接 `implements org.tp.tcdex.integration.tinkers.modifier.hook.KillingHook`（接口默认方法 + `AllMerger` 合并器），并在 `registerHooks` 中 `addHook(this, TcdexHooks.KILLING_HOOK)`。
-
-### 4.3 元素攻击 Hook（ELEMENTAL_ATTACK）
-
-`TcdexHooks.ELEMENTAL_ATTACK`（`org.tp.tcdex.integration.tinkers.modifier.hook.ElementalAttackModifierHook`）——工具上任意词条可调整**元素伤害**与**护盾破盾效率**，由 `ElementalDamageEvents` 在伤害转化/护盾结算时链式派发（AllMerger）：
+附属 Mod 可注册完全自定义的匠魂 Hook：
 
 ```java
-public class ElementalMasterModifier extends TcdexBaseModifier {
-
-    // 元素伤害 +20%
-    @Override
-    protected float modifierModifyElementalDamage(IToolStackView tool, ModifierEntry modifier,
-                                                  ElementType element, float amount) {
-        return amount * 1.2f;
-    }
-
-    // 破盾效率 ×1.5（匹配 2.0 → 3.0；不匹配 0.5 → 0.75）
-    @Override
-    protected float modifierModifyShieldEfficiency(IToolStackView tool, ModifierEntry modifier,
-                                                   ElementType shieldElement, float efficiency) {
-        return efficiency * 1.5f;
-    }
-}
-```
-
-> 继承 `TcdexBaseModifier` 时该 Hook 已自动注册，直接覆写 `modifierModifyElementalDamage` / `modifierModifyShieldEfficiency` 即可；不继承基类时才需要手动 `implements ElementalAttackModifierHook` + `addHook(this, TcdexHooks.ELEMENTAL_ATTACK)`。
-
-### 4.3.1 预置 Hook 总览（基类已全部注册，子类直接覆写 `modifierXxx`）
-
-| Hook | 派发时机 | 可覆写方法 |
-|---|---|---|
-| `KILLING_HOOK` | 工具击杀生物（LivingDeathEvent LOWEST） | `modifierOnKillLivingTarget` |
-| `ELEMENTAL_ATTACK` | 伤害转化/护盾结算（基类已预注册） | `modifierModifyElementalDamage` / `modifierModifyShieldEfficiency` |
-| `SHIELD_BREAK` | 护盾（含棱镜盾）被打穿 | `modifierModifyBreakExplosion`（调整破盾爆炸伤害）/ `modifierOnShieldBreak`（联动回调） |
-| `PLAYER_SHIELD` | 玩家护盾吸收 / **每次脱战恢复会话开始时**（速率缓存，回复中不重复派发） | `modifierModifyAbsorbed`（调整吸收量）/ `modifierModifyRegenRate`（调整回复速率） |
-| `PLAYER_SHIELD_BREAK` | 玩家护盾被打穿（从有到无的当次受击） | `modifierModifyBreakOverflow`（减免溢出伤害，0 = 完全格挡）/ `modifierOnShieldBreak`（破碎联动回调：AOE/增益等） |
-| `ELEMENTAL_STATE_APPLY` | 元素/棱镜词条近战命中施加状态（远程不派发） | `modifierModifyStateStacks` / `modifierModifyStateDuration` |
-| `ELEMENTAL_KEYWORD` | 元素关键词结算（受击联动，目标带标记/冻结时） | `modifierModifyKeywordMultiplier`（Sever/Shatter/Weaken 倍率）/ `modifierModifyKeywordDamage`（Volatile 爆炸%/Jolt 伤害/Refract 溅射比）/ `modifierModifyKeywordRadius`（Volatile/Jolt/Refract 半径） |
-| `KINETIC_ATTACK` | 动能伤害转化/动能破盾结算（仅动能武器，与 ELEMENTAL_ATTACK 分支互斥） | `modifierModifyKineticDamage`（调整动能伤害）/ `modifierModifyKineticShieldEfficiency`（调整动能破盾效率，默认普通盾 ×0.5 / 棱镜盾 ×0.1） |
-
-> 预置 Hook 的接口与合并器均开放：附属 mod 可 `implements` 对应接口 + `addHook(this, TcdexHooks.XXX)` 接入，无需改动 TCDEX 源码。
-
-**关键词 hook 派发对象**：`ELEMENTAL_KEYWORD` 在关键词结算处（`ElementalStateEvents`）派发给**事件中持有匠魂工具的玩家**——攻击者为玩家（或玩家弹射物）时用攻击者的武器；怪物攻击玩家触发 Sever 反向结算时用被攻击玩家的武器；怪物互殴等无玩家参与场景不派发（用默认值）。
-
-```java
-// 增强 Jolt 连锁闪电（示例：电弧增幅词条）
-@Override
-protected float modifierModifyKeywordDamage(IToolStackView tool, ModifierEntry modifier, ElementType keyword, float damage) {
-    if (keyword == ElementType.ARC) {
-        return damage * 1.5f;   // 连锁伤害 +50%
-    }
-    return damage;
-}
-
-@Override
-protected float modifierModifyKeywordRadius(IToolStackView tool, ModifierEntry modifier, ElementType keyword, float radius) {
-    if (keyword == ElementType.ARC) {
-        return radius + 1.0f;   // 连锁半径 +1 格
-    }
-    return radius;
-}
-```
-
-### 4.4 注册自定义 ModuleHook（扩展模式）
-
-完全自定义 hook 类型（如你的 mod 需要"工具格挡"、"工具治疗"等新触发点），照 TCDEX 模式：
-
-```java
-// 1. 接口 + 合并器
 public interface MyHook {
-    default void onMyEvent(IToolStackView tool, ModifierEntry modifier, LivingEntity holder) {
-    }
-    record AllMerger(java.util.Collection<MyHook> modules) implements MyHook {
+    default void onMyEvent(IToolStackView tool, ModifierEntry modifier, LivingEntity holder) {}
+    record AllMerger(Collection<MyHook> modules) implements MyHook {
         @Override public void onMyEvent(IToolStackView tool, ModifierEntry modifier, LivingEntity holder) {
-            for (MyHook module : modules) module.onMyEvent(tool, modifier, holder);
+            modules.forEach(m -> m.onMyEvent(tool, modifier, holder));
         }
     }
 }
 
-// 2. 注册到 ModifierHooks（全局注册表）
 public final class MyHooks {
     public static final ModuleHook<MyHook> MY_HOOK = ModifierHooks.register(
             new ResourceLocation("yourmodid", "my_hook"),
             MyHook.class, MyHook.AllMerger::new, new MyHook() {});
 }
-
-// 3. 词条声明 + 触发点（Forge 事件里手动派发）
-@Mod.EventBusSubscriber(modid = "yourmodid", bus = Mod.EventBusSubscriber.Bus.FORGE)
-public class MyEvents {
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onSomeEvent(SomeForgeEvent event) {
-        LivingEntity holder = ...;
-        ToolStack tool = Modifier.getHeldTool(holder, InteractionHand.MAIN_HAND);
-        if (tool == null) return;
-        for (ModifierEntry entry : tool.getModifierList()) {
-            entry.getHook(MyHooks.MY_HOOK).onMyEvent(tool, entry, holder);
-        }
-    }
-}
 ```
 
-### 4.5 棱镜共鸣（Prism Resonance，内置词条）
+#### 词条互斥与依赖
 
-棱镜伤害的**专属词条**（命运2 Prismatic，`tcdex:prism_resonance`）：
-- 攻击整体转化为**棱镜伤害**——对任意元素护盾按匹配效率（×2）磨损，可**永久打破棱镜盾**（打穿后不再回复）
-- 命中施加棱镜标记 → 受击 **Refract 折射**（本击 25% 伤害溅射周围）
-- **与元素充能互斥**：两者不可同时打在同一工具上（词条工作台会拒绝添加，提示"与元素充能互斥"）
+- `ModifierExclusivity`：注册词条互斥。
+- `ModifierHelper`：判断前置词条/元素充能。
 
-### 4.6 词条互斥 API（ModifierExclusivity）
+---
 
-匠魂 3.11 官方没有词条互斥 API，TCDEX 自实现了注册中心 `org.tp.tcdex.integration.tinkers.modifier.ModifierExclusivity`：
+## 配置总览
 
-```java
-// 一对互斥（自动双向登记）
-ModifierExclusivity.registerExclusive(
-        new ModifierId("yourmodid", "a"), new ModifierId("yourmodid", "b"));
+主要配置文件：`config/tcdex-common.toml`
 
-// 一组互斥（组内两两互斥）
-ModifierExclusivity.registerExclusiveGroup(id1, id2, id3);
-
-// 词条内接入校验：工具已有互斥词条时返回提示（匠魂词条工作台添加时拒绝）
-@Override
-protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier) {
-    return ModifierExclusivity.validate(tool, modifier);   // 冲突返回 "与 %s 互斥，无法同时添加"
-}
-```
-
-内置互斥集中在 `ModifierExclusivity.registerAll()` 注册（元素充能 ↔ 棱镜共鸣；动能词条「动能震颤/动能虹吸」↔ 元素体系；「五项之力」↔ 元素体系），新增互斥在那里追加一行即可。
-
-### 4.7 词条依赖判定（ModifierHelper）
-
-词条可声明**前置依赖**（"词条 A 需要词条 B"），由 `org.tp.tcdex.integration.tinkers.modifier.ModifierHelper` 提供判定：
-
-```java
-// 判定工具是否带元素充能词条且固化为指定元素（示例：电弧增幅需要元素充能-电弧）
-boolean ok = ModifierHelper.hasElementalCharge(tool, ElementType.ARC);
-
-// 通用词条存在性判定（按类型 / 按 id）
-boolean has = ModifierHelper.hasModifier(tool, ElementalModifier.class);
-boolean has2 = ModifierHelper.hasModifier(tool, new ModifierId("yourmodid", "xxx"));
-
-// 读取元素充能固化的元素（null = 无/未固化）
-ElementType element = ModifierHelper.getElementalChargeElement(tool);
-```
-
-词条在三个层面接入依赖（参考 TCDEX 电弧增幅 `ArcAmplifierModifier`）：
-
-```java
-// 1. 添加校验：不满足依赖时返回提示（词条工作台拒绝添加）
-@Override
-protected Component modifierValidate(IToolStackView tool, ModifierEntry modifier) {
-    if (!ModifierHelper.hasElementalCharge(tool, ElementType.ARC)) {
-        return Component.translatable("modifier.tcdex.requires.elemental_arc");
-    }
-    return null;
-}
-
-// 2. 运行时兜底：不满足依赖时返回默认值（防命令强加）
-@Override
-protected float modifierModifyKeywordDamage(IToolStackView tool, ModifierEntry modifier, ElementType keyword, float damage) {
-    if (keyword == ElementType.ARC && ModifierHelper.hasElementalCharge(tool, ElementType.ARC)) {
-        return damage * 1.5f;
-    }
-    return damage;
-}
-
-// 3. Tooltip：未满足依赖时显示红色需求提示
-@Override
-protected void modifierAddTooltip(IToolStackView tool, ModifierEntry modifier, Player player, List<Component> tooltip, TooltipKey tooltipKey, TooltipFlag tooltipFlag) {
-    if (!ModifierHelper.hasElementalCharge(tool, ElementType.ARC)) {
-        tooltip.add(Component.translatable("modifier.tcdex.requires.elemental_arc")
-                .withStyle(style -> style.withColor(TextColor.fromRgb(0xFFFF5555))));
-    }
-}
-```
-
-### 4.8 元素反应 Hook 与 API
-
-TCDEX 元素反应提供完整对外扩展点：
-
-**API 入口：`org.tp.tcdex.api.TcdexReactionAPI`**
-
-```java
-// 注册自定义反应（自动双向）
-TcdexReactionAPI.registerReaction(new ElementReaction(
-    ElementType.SOLAR, ElementType.ARC, ReactionType.DAMAGE,
-    1.0f, 40, 0, 2.0f, 8.0f));
-
-// 查询 / 取消
-ElementReaction reaction = TcdexReactionAPI.findReaction(ElementType.SOLAR, ElementType.ARC);
-TcdexReactionAPI.unregisterReaction(ElementType.SOLAR, ElementType.ARC);
-
-// 手动触发
-boolean ok = TcdexReactionAPI.triggerReaction(target, ElementType.SOLAR, ElementType.ARC, player);
-
-// 读写附着量
-TcdexReactionAPI.addAura(target, ElementType.SOLAR, 1.0f, 100);
-float aura = TcdexReactionAPI.getAura(target, ElementType.SOLAR);
-TcdexReactionAPI.consumeAura(target, ElementType.SOLAR, 1.0f);
-
-// 开关与衰减
-TcdexReactionAPI.setEnabled(true);
-TcdexReactionAPI.setAuraDecayPerTick(0.01f);
-```
-
-**词条 Hook：`TcdexHooks.REACTION`（基类已注册，子类直接覆写）**
-
-| 可覆写方法 | 作用 |
+| 配置项 | 说明 |
 |---|---|
-| `modifierModifyReactionAuraCost` | 调整附着量消耗 |
-| `modifierModifyReactionDuration` | 调整反应持续时间 |
-| `modifierModifyReactionRadius` | 调整反应范围 |
-| `modifierModifyReactionIntensity` | 调整反应强度（聚怪/增幅/护盾） |
-| `modifierModifyReactionDamage` | 调整伤害类反应伤害 |
-| `modifierModifyReactionCooldown` | 调整反应冷却 |
-| `modifierOnReactionTriggered` | 反应触发后的回调 |
-
-```java
-@Override
-protected float modifierModifyReactionDamage(IToolStackView tool, ModifierEntry modifier,
-                                             ElementReaction reaction, float damage) {
-    return damage * 1.5f; // 元素精通：反应伤害 +50%
-}
-```
+| `elementReactionsEnabled` | 元素反应总开关 |
+| `auraDecayPerTick` | 元素附着自然衰减速度 |
+| `shieldWeight*` | 各元素护盾生成权重 |
+| `elementWeight*` | 元素充能随机权重 |
+| `monsterElementalAttacks` | 怪物元素攻击开关 |
+| `monsterElementalAttackChance` | 怪物元素攻击命中概率 |
+| `monsterElementResistances` | 元素抗性/弱点表 |
+| `shieldElementEfficiencies` | 护盾破盾效率表 |
+| `prismShield*` | 棱镜盾参数 |
+| `playerShield*` | 玩家护盾参数 |
+| `playerShieldHud` / `monsterShieldHud` / `monsterAuraHud` / `elementEnergyHud` | HUD 开关 |
+| `worldBaseLight` / `netherLightOffset` / `endLightOffset` | 世界光等参数 |
+| `dimensionLightOffsets` / `biomeBaseLights` / `distanceGradient*` | 维度/群系/距离光等 |
 
 ---
 
-## 5. 实体元素状态接口 IElementalEntity
+## 开发与构建
 
-`org.tp.tcdex.modifier.elemental.IElementalEntity` —— 由 Mixin 注入**所有 LivingEntity**（含其他 mod 生物）。获取方式：
-
-```java
-IElementalEntity data = IElementalEntity.of(entity);   // 直接强转，无需判空
-```
-
-| 方法 | 说明 |
-|---|---|
-| `getElementStacks(type)` / `getElementDuration(type)` | 读取元素状态层数 / 剩余 tick |
-| `addElementState(type, stacks, duration)` | 叠加状态（层数封顶 100，时长取较大值） |
-| `clearElementState(type)` | 清除某元素状态 |
-| `getAllElementStates()` | 全部状态（`Map<ElementType, ElementStatus>`） |
-| `getShieldElement()` / `getShieldAmount()` | 护盾元素 / 剩余护盾值（懒加载初始化） |
-| `consumeShield(damage)` | 扣盾，返回溢出伤害 |
-| `destroyShield()` / `setShield(element, amount)` | 破盾 / 直接设置护盾 |
-
-状态在实体 **tick 自动结算**（服务端）：灼烧 DoT（10 tick/跳）、冰影减速/冻结、到期清除。
-
----
-
-## 6. 元素类型与关键词总览
-
-| 元素 | id | 状态机制 | 关键词效果 |
-|---|---|---|---|
-| 烈日 SOLAR | `solar` | 每击 +25 层 | 灼烧 DoT（10 tick/跳，无视无敌帧）；满 100 → Ignite 引爆（4 格 AOE） |
-| 电弧 ARC | `arc` | 标记型（+1） | 受击 → Jolt 连锁闪电（2 格内 2 目标） |
-| 虚空 VOID | `void` | 标记型（+1） | 受击 → Volatile 爆炸（10% 最大生命 AOE） |
-| 冰影 STASIS | `stasis` | 每击 +50 层 | ≥50 减速 → 满 100 冻结；冻结中受击 Shatter +50% |
-| 缚丝 STRAND | `strand` | 标记型（+1） | 带标记者造成伤害 -40%（Sever） |
-| 沉星 SINKSTAR | `sinkstar` | 标记型（+1） | 参与元素反应：重力坍缩、沉霜镇压 |
-| 岚流 MISTFLOW | `mistflow` | 标记型（+1） | 参与元素反应：风暴锁链、岚蚀恐惧、岚流扩散 |
-| 棱镜 PRISM | `prism` | 标记型（+1） | 受击 Refract 折射：本击 25% 伤害溅射周围；棱镜攻击破任意元素盾（匹配效率 ×2，折射所有光）。**玩家无法通过元素充能词条获得（Boss 专属）**，不参与常规七元素反应 |
-| 潮汐 TIDE | `tide` | 伪元素（+1） | 仅用于环境附着/反应，不参与七元素、元素充能、护盾随机 |
-
-元素爆炸/连锁**均不伤害玩家**（命运2 语义）；`AllPermittedModifier` 超载除外（有意设计）。
-
----
-
-## 7. 配置总览
-
-`config/tcdex-common.toml`（节选，均为运行时重载）：
-
-```toml
-# 世界光等场
-worldBaseLight = 20
-nonTinkersWeaponLight = 20     # 普通武器（非匠魂）统一光等
-netherLightOffset = 25
-endLightOffset = 50
-dimensionLightOffsets = []      # 维度偏移表，如 twilightforest:twilight_forest=40
-dimensionOffsetOther = 30       # 其他 mod 维度默认偏移
-distanceGradientStep = 3        # 每 1000 格 +3
-distanceGradientCap = 45
-biomeBaseLights = []            # 地形基础光等表，如 ["minecraft:desert=35", "minecraft:swamp=28"]
-biomeLightGradients = []        # 地形光等增加速度表，如 ["minecraft:desert=6", "minecraft:plains=3"]
-daysPerTimeBonus = 5            # 时间压力：每 5 活跃天 +1
-maxTimeBonus = 30
-timeSpreadStart = 2000          # 出生点安全区
-timeSpreadEnd = 10000
-
-# 护盾与元素权重
-shieldBlacklist = []            # 不带元素盾/元素攻击的生物（modid:entity）
-shieldWeightSolar/Arc/Void/Stasis/Strand/Sinkstar/Mistflow = 1
-shieldWeightPrism = 0           # 棱镜暂不参与随机盾
-elementWeightSolar/Arc/Void/Stasis/Strand/Sinkstar/Mistflow = 1
-elementWeightPrism = 0          # 棱镜不可通过元素充能获得（Boss 专属）
-
-# 元素反应（原神式附着/消耗模型，与命运2关键词共存）
-elementReactionsEnabled = true  # 元素反应总开关
-auraDecayPerTick = 0.01         # 附着量每 tick 衰减
-monsterAuraHud = true           # 显示目标元素附着 HUD
-elementEnergyHud = true         # 显示玩家元素能量条 HUD
-
-# 元素怪物攻击
-monsterElementalAttacks = true  # 怪物元素攻击总开关
-monsterElementalAttackChance = 1.0  # 每次命中施加元素状态的概率（0-1）
-
-# 元素抗性/弱点表（entityid:element=倍率，1.0 正常 / >1 弱点 / <1 抗性）
-monsterElementResistances = ["minecraft:blaze:solar=0.5", "minecraft:blaze:void=1.5", ...]
-
-# 棱镜盾（凋零/末影龙）
-prismShieldMatchEfficiency = 2.0    # 棱镜伤害磨损效率（匹配）
-prismShieldElementEfficiency = 0.5  # 其他元素磨损效率
-prismShieldKineticEfficiency = 0.1  # 动能磨损效率
-prismShieldElementReduction = 0.5   # 非玩家非棱镜伤害减免（0.5 = 50%）
-prismShieldKineticReduction = 0.1   # 非玩家动能伤害减免（0.1 = 90%）
-prismShieldRegenDelay = 10          # 脱战回复延迟（秒）
-prismShieldRegenCycle = 5           # 回复周期（tick）
-prismShieldRegenPercent = 0.1       # 每周期回复比例（10%）
-
-# 玩家护盾
-playerShieldEnabled = true
-playerShieldRatio = 1.0
-playerShieldRegenDelay = 5
-playerShieldRegenRate = 0.4
-playerShieldElementFactor = 0.8     # 带元素状态时护盾回复速率系数（1.0 = 无影响）
-playerShieldHud = true
-playerBuffHud = true
-```
-
----
-
-## 8. 纹理生成器（流体 / 材料图标）
-
-`tools/texturegen/TextureGenerator.java` —— 零依赖的独立 Java 工具（JDK 11+ 单文件运行），
-为新增流体与材料生成**贴合原版/匠魂观感**的纹理（非占位图），按 Forge 1.20.1 规范输出：
-
-- **流体（仿匠魂熔融金属，参数为对 TConstruct 3.11 纹理的实测还原）**：
-  - still = 16x16 帧垂直堆叠、flow = 32x32 帧垂直堆叠，mcmeta `frametime 2`
-  - 10 级调色板由单色自动派生（暗端→亮端：亮度 ×~2、饱和度降 ~0.3、色相 +10° 偏移，
-    与匠魂铁/玛玉灵熔融纹理同一规律）
-  - still = 结壳噪声"沸腾"动画（每帧约 20% 像素在相邻色阶翻动，正弦相位无缝循环）
-  - flow = 暗色结壳整幅向下滚动 + 亮色流纹（滚动一周 = 帧数，无缝循环）
-  - 噪声可平铺（边缘无缝），同参数输出确定可复现
-- **物品（原版像素画风格）**：16x16 硬像素模板（无抗锯齿），5 色调色板由单色自动派生
-  （轮廓偏冷最暗 / 高光偏暖近白），4 种形状：`ingot` 锭 / `nugget` 粒 / `gem` 宝石 / `plate` 板
-
-```
-src/main/resources/assets/tcdex/textures/
-├── block/<name>_still.png      # 流体静止帧（多帧垂直堆叠动画）
-├── block/<name>_still.png.mcmeta  # 动画元数据（frametime 2）
-├── block/<name>_flow.png       # 流体流动帧（多帧垂直堆叠动画）
-├── block/<name>_flow.png.mcmeta
-└── item/<name>.png             # 材料图标（16x16 像素画）
-```
-
-**用法**（项目根目录）：
+### 构建
 
 ```bash
-# 按 tools/texturegen/textures.txt 批量生成
-java tools/texturegen/TextureGenerator.java
+./gradlew build
+./gradlew compileJava
+```
 
-# 追加单个流体 / 物品（给出 CLI 条目时不再合并配置文件）
+### 数据生成
+
+```bash
+./gradlew runData
+```
+
+生成结果输出到 `src/generated/resources`。
+
+### 纹理生成器
+
+项目提供独立纹理生成工具：
+
+```bash
 java tools/texturegen/TextureGenerator.java --fluid molten_prism A78BFA
 java tools/texturegen/TextureGenerator.java --item prism_ingot A78BFA ingot
-
-# 参数：--frames N（流体帧数，默认 16） --seed N（噪声种子） --out <dir> --config <file>
-#      --preview <png> 终端 ASCII 预览（动画显示前 4 帧）
-```
-
-**textures.txt 格式**（每行一条，`#` 注释）：
-
-```
-# 流体：fluid:<名称>,<十六进制颜色>[,帧数]
-fluid:molten_prism,A78BFA
-# 材料物品图标：item:<名称>,<十六进制颜色>[,形状]   形状：ingot|nugget|gem|plate（默认 ingot）
-item:prism_ingot,A78BFA,ingot
 ```
 
 ---
 
-## 9. 常见问题
+## 常见问题
 
-**Q：TCDEX 未安装时我的 mod 会崩溃吗？**
-声明 `mandatory = false` 依赖 + `ModList.isLoaded("tcdex")` 保护即可。只引用 API 类但不在未加载时调用是安全的（类在 TCDEX jar 中，你的 jar 不打包它）。
+**Q：TCDEX 未安装时我的 Mod 会崩溃吗？**  
+声明 `mandatory = false` 依赖并在调用前判断 `ModList.get().isLoaded("tcdex")` 即可。
 
-**Q：Tinkers Construct 未安装时 TCDEX 会崩溃吗？**
-不会。TCDEX 核心不引用任何 `slimeknights` 类；`tconstruct` / `mantle` 均为可选依赖。未安装时 Tinkers add 包不初始化，匠魂词条、光等、武器元素、Tinkers Hook 等功能自动禁用；元素反应、玩家护盾、光等、怪物护盾等核心功能仍正常工作。
+**Q：Tinkers 未安装时 TCDEX 会崩溃吗？**  
+不会。Tinkers Add 包不会初始化，核心元素反应、光等、护盾等功能不受影响。
 
-**Q：元素状态会存档吗？**
-不会——元素状态是运行时数据（战斗短时状态），随实体消失；护盾在实体生成时重新分配。
+**Q：元素状态会存档吗？**  
+不会。元素状态是运行时战斗数据，随实体消失；护盾在生成时重新分配。
 
-**Q：我可以给玩家施加元素状态吗？**
-可以——`IElementalEntity.of(player)` 同样可用（玩家也是 LivingEntity），客户端 HUD 会自动显示（需 TCDEX 的 `PlayerStateSyncPacket` 同步，服务端写入即可）。
+**Q：我能给玩家施加元素状态吗？**  
+可以。玩家也是 `LivingEntity`，`IElementalEntity.of(player)` 可用。
 
-**Q：`TcdexBaseModifier` 与匠魂 `NoLevelsModifier` 区别？**
-基类继承 `Modifier`（可升级）。需要无等级语义时覆写 `getDisplayName(int level)` 返回 `super.getDisplayName()`（参考 TCDEX 各词条）。
+**Q：元素反应数值能自己改吗？**  
+可以。通过 `TcdexReactionAPI.registerReaction` 注册或覆盖默认反应，并设置 `priority` / `damage` / `duration` / `radius` / `intensity` / `cooldown`。
 
-**Q：护盾/元素权重改了不生效？**
-配置文件 `/reload` 或重启生效；**已固化的武器元素、已生成的怪物护盾不会重新随机**（固化/生成时确定是设计语义）。
+---
+
+## 后续自创机制方向
+
+当前已有不少原创基础，例如失衡/破绽、元素残响、元素适应。后续可以优先开发：
+
+1. **原命星盘 / 元素回路**：玩家通过元素反应点亮星盘，激活专属共鸣。
+2. **元素崩解**：目标同时有 3 种以上元素附着时触发多元素混合爆发。
+3. **命定词缀**：怪物根据元素命定改变死亡/击杀策略。
+4. **元素方碑 / 世界试炼**：把元素反应扩展到探索和解谜。
+5. **处决/终结技**：基于失衡/破绽的系统化玩家动作。
+6. **圣遗物套装效果**：增强 Build 深度。
 
 ---
 
 ## 许可证
 
-MIT（见 LICENSE）
+MIT

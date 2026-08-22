@@ -8,6 +8,8 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
+import org.tp.tcdex.chain.ElementActionType;
+import org.tp.tcdex.chain.ElementCombatEvents;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
@@ -61,6 +63,11 @@ public class IceAndFireEvents {
 
         if (target instanceof Player player) {
             ElementEnergyManager.onPlayerDamagedByElement(player, element);
+        }
+
+        // 玩家使用冰火元素攻击时计入连携链
+        if (attacker instanceof Player player) {
+            ElementCombatEvents.report(player, element, ElementActionType.SKILL, target);
         }
 
         // 参与元素护盾结算：返回 0 表示伤害被护盾完全吸收

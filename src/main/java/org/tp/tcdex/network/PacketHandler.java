@@ -43,5 +43,13 @@ public final class PacketHandler {
                 ElementBurstActivatePacket::encode,
                 ElementBurstActivatePacket::decode,
                 ElementBurstActivatePacket::handle);
+        CHANNEL.registerMessage(5, ChainActionPacket.class,
+                ChainActionPacket::encode,
+                ChainActionPacket::decode,
+                ChainActionPacket::handle);
+        CHANNEL.registerMessage(6, ChainStateSyncPacket.class,
+                ChainStateSyncPacket::encode,
+                ChainStateSyncPacket::decode,
+                ChainStateSyncPacket::handle);
     }
 }
