@@ -11,7 +11,7 @@ import java.util.Map;
  * <p>武器词条命中时通过 {@link #addElementState} 给目标叠加元素状态；
  * 状态由 Mixin 的 tick 结算（衰减/满层触发），受击联动见 {@link org.tp.tcdex.event.ElementalStateEvents}。</p>
  */
-public interface IElementalEntity {
+public interface IElementalEntity extends ElementStateHolder, ElementShieldHolder, ElementCombatHolder {
 
     /** 获取某元素当前层数 */
     float getElementStacks(ElementType type);

@@ -1,7 +1,11 @@
 package org.tp.tcdex.api;
 
 import net.minecraft.world.entity.LivingEntity;
+import org.tp.tcdex.element.ElementDefinition;
+import org.tp.tcdex.element.ElementEffectProcessor;
+import org.tp.tcdex.element.ElementEffectRegistry;
 import org.tp.tcdex.element.ElementManager;
+import org.tp.tcdex.element.ElementRegistry;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
 import java.util.Map;
@@ -15,6 +19,18 @@ import java.util.Map;
 public final class TcdexElementAPI {
 
     private TcdexElementAPI() {
+    }
+
+    // ===== 元素定义注册（数据驱动扩展） =====
+
+    /** 注册自定义元素定义 */
+    public static void registerElement(ElementDefinition definition) {
+        ElementRegistry.register(definition);
+    }
+
+    /** 注册自定义元素效果处理器 */
+    public static void registerElementEffect(ElementType type, ElementEffectProcessor processor) {
+        ElementEffectRegistry.register(type, processor);
     }
 
     // ===== 护盾提供器 =====

@@ -24,6 +24,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ToolAction;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import org.tp.tcdex.integration.tinkers.modifier.hook.ElementalAttackModifierHook;
 import org.tp.tcdex.integration.tinkers.modifier.hook.ElementalKeywordHook;
 import org.tp.tcdex.integration.tinkers.modifier.hook.ElementalStateApplyHook;
 import org.tp.tcdex.integration.tinkers.modifier.hook.KillingHook;
@@ -122,7 +123,7 @@ import java.util.function.Predicate;
 /**
  * TCDEX 全能词条基类（对标 sakuratinker 的 BaseModifier）。
  *
- * <p>一次性 implements 匠魂 3.10 的全部原生 hook 接口 + TCDEX 自定义 {@link KillingHook}，
+ * <p>一次性 implements 匠魂 3.11 的全部原生 hook 接口 + TCDEX 自定义 {@link KillingHook}，
  * registerHooks 里一次性注册全部 hook。所有接口方法均委托给可覆写的 {@code modifierXxx()} 方法
  * （全部空实现 / 返回安全默认值），子类只需按需覆写对应方法。</p>
  *
@@ -158,7 +159,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
         BlockTransformModifierHook, CapacityBarHook, PlantHarvestModifierHook, ShearsModifierHook,
         SlingAngleModifierHook, SlingForceModifierHook, SlingLaunchModifierHook,
         // TCDEX 自定义
-        KillingHook, ShieldBreakHook, PlayerShieldHook, PlayerShieldBreakHook, ElementalStateApplyHook,
+        KillingHook, ElementalAttackModifierHook, ShieldBreakHook, PlayerShieldHook, PlayerShieldBreakHook, ElementalStateApplyHook,
         ElementalKeywordHook, KineticAttackModifierHook, ReactionModifierHook {
 
     @Override
@@ -193,7 +194,7 @@ public abstract class TcdexBaseModifier extends Modifier implements
                 // special
                 ModifierHooks.BLOCK_TRANSFORM, ModifierHooks.CAPACITY_BAR, ModifierHooks.PLANT_HARVEST, ModifierHooks.SHEAR_ENTITY,
                 // TCDEX 自定义
-                TcdexHooks.KILLING_HOOK, TcdexHooks.SHIELD_BREAK, TcdexHooks.PLAYER_SHIELD,
+                TcdexHooks.KILLING_HOOK, TcdexHooks.ELEMENTAL_ATTACK, TcdexHooks.SHIELD_BREAK, TcdexHooks.PLAYER_SHIELD,
                 TcdexHooks.PLAYER_SHIELD_BREAK, TcdexHooks.ELEMENTAL_STATE_APPLY, TcdexHooks.ELEMENTAL_KEYWORD,
                 TcdexHooks.KINETIC_ATTACK, TcdexHooks.REACTION);
     }
@@ -754,6 +755,16 @@ public abstract class TcdexBaseModifier extends Modifier implements
     }
 
     @Override
+    public float modifyElementalDamage(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, float amount) {
+        return modifierModifyElementalDamage(tool, modifier, element, amount);
+    }
+
+    @Override
+    public float modifyShieldEfficiency(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType shieldElement, float efficiency) {
+        return modifierModifyShieldEfficiency(tool, modifier, shieldElement, efficiency);
+    }
+
+    @Override
     public float modifyKeywordMultiplier(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float multiplier) {
         return modifierModifyKeywordMultiplier(tool, modifier, keyword, multiplier);
     }
@@ -1201,6 +1212,14 @@ public abstract class TcdexBaseModifier extends Modifier implements
 
     protected float modifierModifyKeywordRadius(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType keyword, float radius) {
         return radius;
+    }
+
+    protected float modifierModifyElementalDamage(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType element, float amount) {
+        return amount;
+    }
+
+    protected float modifierModifyShieldEfficiency(IToolStackView tool, ModifierEntry modifier, org.tp.tcdex.element.ElementType shieldElement, float efficiency) {
+        return efficiency;
     }
 
     protected float modifierModifyKineticDamage(IToolStackView tool, ModifierEntry modifier, LivingEntity target, float amount) {

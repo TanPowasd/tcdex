@@ -416,38 +416,32 @@ public class ReaperModifier extends TcdexBaseModifier {
 `TcdexHooks.ELEMENTAL_ATTACK`（`org.tp.tcdex.integration.tinkers.modifier.hook.ElementalAttackModifierHook`）——工具上任意词条可调整**元素伤害**与**护盾破盾效率**，由 `ElementalDamageEvents` 在伤害转化/护盾结算时链式派发（AllMerger）：
 
 ```java
-public class ElementalMasterModifier extends TcdexBaseModifier implements ElementalAttackModifierHook {
-
-    @Override
-    protected void registerHooks(ModuleHookMap.Builder builder) {
-        super.registerHooks(builder);
-        builder.addHook(this, TcdexHooks.ELEMENTAL_ATTACK);   // 基类不预注册本 hook，需手动挂
-    }
+public class ElementalMasterModifier extends TcdexBaseModifier {
 
     // 元素伤害 +20%
     @Override
-    public float modifyElementalDamage(IToolStackView tool, ModifierEntry modifier,
-                                       ElementType element, float amount) {
+    protected float modifierModifyElementalDamage(IToolStackView tool, ModifierEntry modifier,
+                                                  ElementType element, float amount) {
         return amount * 1.2f;
     }
 
     // 破盾效率 ×1.5（匹配 2.0 → 3.0；不匹配 0.5 → 0.75）
     @Override
-    public float modifyShieldEfficiency(IToolStackView tool, ModifierEntry modifier,
-                                        ElementType shieldElement, float efficiency) {
+    protected float modifierModifyShieldEfficiency(IToolStackView tool, ModifierEntry modifier,
+                                                   ElementType shieldElement, float efficiency) {
         return efficiency * 1.5f;
     }
 }
 ```
 
-> 该接口的两个方法均为 `default`（返回原值），只覆写需要的即可。
+> 继承 `TcdexBaseModifier` 时该 Hook 已自动注册，直接覆写 `modifierModifyElementalDamage` / `modifierModifyShieldEfficiency` 即可；不继承基类时才需要手动 `implements ElementalAttackModifierHook` + `addHook(this, TcdexHooks.ELEMENTAL_ATTACK)`。
 
 ### 4.3.1 预置 Hook 总览（基类已全部注册，子类直接覆写 `modifierXxx`）
 
 | Hook | 派发时机 | 可覆写方法 |
 |---|---|---|
 | `KILLING_HOOK` | 工具击杀生物（LivingDeathEvent LOWEST） | `modifierOnKillLivingTarget` |
-| `ELEMENTAL_ATTACK` | 伤害转化/护盾结算（需手动 `addHook`） | `modifyElementalDamage` / `modifyShieldEfficiency` |
+| `ELEMENTAL_ATTACK` | 伤害转化/护盾结算（基类已预注册） | `modifierModifyElementalDamage` / `modifierModifyShieldEfficiency` |
 | `SHIELD_BREAK` | 护盾（含棱镜盾）被打穿 | `modifierModifyBreakExplosion`（调整破盾爆炸伤害）/ `modifierOnShieldBreak`（联动回调） |
 | `PLAYER_SHIELD` | 玩家护盾吸收 / **每次脱战恢复会话开始时**（速率缓存，回复中不重复派发） | `modifierModifyAbsorbed`（调整吸收量）/ `modifierModifyRegenRate`（调整回复速率） |
 | `PLAYER_SHIELD_BREAK` | 玩家护盾被打穿（从有到无的当次受击） | `modifierModifyBreakOverflow`（减免溢出伤害，0 = 完全格挡）/ `modifierOnShieldBreak`（破碎联动回调：AOE/增益等） |

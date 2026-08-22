@@ -59,10 +59,11 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.element.void", "Void");
         add("modifier.tcdex.elemental.element.stasis", "Stasis");
         add("modifier.tcdex.elemental.element.strand", "Strand");
+        add("modifier.tcdex.elemental.element.moon", "Moon");
         add("modifier.tcdex.elemental.element.prism", "Prism");
-        add("modifier.tcdex.elemental.element.sinkstar", "Sinkstar");
-        add("modifier.tcdex.elemental.element.mistflow", "Mistflow");
-        add("modifier.tcdex.elemental.element.tide", "Tide");
+        add("modifier.tcdex.elemental.element.sinkstar", "Meteor");
+        add("modifier.tcdex.elemental.element.mistflow", "Aetherflow");
+        add("modifier.tcdex.elemental.element.tide", "Water");
         add("modifier.tcdex.elemental.tooltip.element", "Element: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "Element: uncharged (assigned when kept in inventory)");
 
@@ -142,6 +143,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add("death.attack.tcdex.void", "%1$s was consumed by Void");
         add("death.attack.tcdex.stasis", "%1$s was shattered by Stasis");
         add("death.attack.tcdex.strand", "%1$s was torn apart by Strand");
+        add("death.attack.tcdex.moon", "%1$s was eclipsed by the Moon");
         add("death.attack.tcdex.sinkstar", "%1$s was crushed by a falling star");
         add("death.attack.tcdex.mistflow", "%1$s was scattered by the mistflow");
         add("death.attack.tcdex.prism", "%1$s was shattered by prismatic light");
@@ -157,8 +159,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add("command.tcdex.debug.disabled", "Light level debug output disabled");
         add("command.tcdex.debug.element.enabled", "Elemental debug output enabled");
         add("command.tcdex.debug.element.disabled", "Elemental debug output disabled");
+        add("command.tcdex.debug.reaction.enabled", "Reaction debug output enabled");
+        add("command.tcdex.debug.reaction.disabled", "Reaction debug output disabled");
         add("command.tcdex.setelement.success", "Set main hand weapon Elemental Charge to %s");
-        add("command.tcdex.setelement.invalid", "Unknown element: %s (choices: solar/arc/void/stasis/strand)");
+        add("command.tcdex.setelement.invalid", "Unknown element: %s (choices: solar/arc/void/stasis/strand/moon/sinkstar/mistflow/tide/prism)");
         add("command.tcdex.setelement.no_modifier", "Main hand weapon has no Elemental Charge modifier");
         add("command.tcdex.setelement.prism_disabled", "Prism cannot be obtained via Elemental Charge (boss-exclusive)");
     }
@@ -192,14 +196,15 @@ public class ModLanguageProvider extends LanguageProvider {
         add("modifier.tcdex.elemental.flavor", "能量已注入，元素即命运");
         add("modifier.tcdex.elemental.description", "打上后随机获得一种元素能力（烈日/电弧/虚空/冰影/缚丝/沉星/岚流），一旦确定无法改变。攻击转化为对应元素伤害，并触发元素关键词：烈日持续灼烧并在满层时引爆；冰影渐进减速、冻结后受击粉碎增伤；虚空受击爆炸增伤、击杀回血；电弧连锁闪电并致盲、击杀获得强化；缚丝削弱敌方伤害、满层悬挂、击杀获得织甲减伤；沉星与岚流参与 TCDEX 元素反应。");
         add("modifier.tcdex.elemental.element.solar", "烈日");
-        add("modifier.tcdex.elemental.element.arc", "电弧");
+        add("modifier.tcdex.elemental.element.arc", "电能");
         add("modifier.tcdex.elemental.element.void", "虚空");
         add("modifier.tcdex.elemental.element.stasis", "冰影");
         add("modifier.tcdex.elemental.element.strand", "缚丝");
+        add("modifier.tcdex.elemental.element.moon", "月");
         add("modifier.tcdex.elemental.element.prism", "棱镜");
-        add("modifier.tcdex.elemental.element.sinkstar", "沉星");
-        add("modifier.tcdex.elemental.element.mistflow", "岚流");
-        add("modifier.tcdex.elemental.element.tide", "潮汐");
+        add("modifier.tcdex.elemental.element.sinkstar", "落星");
+        add("modifier.tcdex.elemental.element.mistflow", "罡流");
+        add("modifier.tcdex.elemental.element.tide", "水");
         add("modifier.tcdex.elemental.tooltip.element", "元素: %s");
         add("modifier.tcdex.elemental.tooltip.uncharged", "元素: 未充能（收入物品栏后确定）");
 
@@ -279,7 +284,8 @@ public class ModLanguageProvider extends LanguageProvider {
         add("death.attack.tcdex.void", "%1$s 被虚空吞噬");
         add("death.attack.tcdex.stasis", "%1$s 被冰影冻结粉碎");
         add("death.attack.tcdex.strand", "%1$s 被缚丝缠绕撕裂");
-        add("death.attack.tcdex.sinkstar", "%1$s 被沉星压碎");
+        add("death.attack.tcdex.moon", "%1$s 被月蚀吞噬");
+        add("death.attack.tcdex.sinkstar", "%1$s 被落星压碎");
         add("death.attack.tcdex.mistflow", "%1$s 被岚流卷散");
         add("death.attack.tcdex.prism", "%1$s 被棱镜之光折射湮灭");
 
@@ -294,8 +300,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add("command.tcdex.debug.disabled", "光等调试输出已关闭");
         add("command.tcdex.debug.element.enabled", "元素调试输出已开启");
         add("command.tcdex.debug.element.disabled", "元素调试输出已关闭");
+        add("command.tcdex.debug.reaction.enabled", "元素反应调试输出已开启");
+        add("command.tcdex.debug.reaction.disabled", "元素反应调试输出已关闭");
         add("command.tcdex.setelement.success", "已将主手武器的元素充能指定为 %s");
-        add("command.tcdex.setelement.invalid", "未知元素: %s（可选: solar/arc/void/stasis/strand）");
+        add("command.tcdex.setelement.invalid", "未知元素: %s（可选: solar/arc/void/stasis/strand/moon/sinkstar/mistflow/tide/prism）");
         add("command.tcdex.setelement.no_modifier", "主手武器没有元素充能词条");
         add("command.tcdex.setelement.prism_disabled", "棱镜无法通过元素充能获得（Boss 专属）");
     }

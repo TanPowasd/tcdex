@@ -27,12 +27,13 @@ import org.tp.tcdex.Tcdex;
 import org.tp.tcdex.api.ITinkersBridge;
 import org.tp.tcdex.damage.ModDamageSources;
 import org.tp.tcdex.debug.TcdexDebug;
+import org.tp.tcdex.element.ElementEffectRegistry;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.integration.tinkers.TinkersBridgeHolder;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.reaction.ElementReactionEvents;
+import org.tp.tcdex.reaction.ElementReactionEngine;
 import org.tp.tcdex.shield.PrismShieldConfig;
 
 import javax.annotation.Nullable;
@@ -68,25 +69,25 @@ public class ElementalStateEvents {
     /** 虚空爆炸半径 */
     private static final float VOLATILE_RADIUS = 1.5f;
     /** 电弧 Jolt：连锁伤害 */
-    private static final float JOLT_DAMAGE = 3.0f;
+    private static final float JOLT_DAMAGE = 4.0f;
     /** 电弧连锁半径 */
-    private static final float JOLT_RADIUS = 2.0f;
+    private static final float JOLT_RADIUS = 2.5f;
     /** 电弧连锁目标上限 */
-    private static final int JOLT_TARGETS = 2;
+    private static final int JOLT_TARGETS = 3;
     /** 冰影 Shatter：冻结中受击增伤 */
     private static final float SHATTER_MULTIPLIER = 1.5f;
     /** 虚空 Weaken：带虚空标记的目标受到的伤害 +15% */
     private static final float WEAKEN_MULTIPLIER = 1.15f;
     /** 电弧 Blind：Jolt 连锁命中目标致盲时长（tick） */
-    private static final int BLIND_DURATION = 60;
+    private static final int BLIND_DURATION = 80;
     /** 护盾量占最大生命的比例 */
     private static final float SHIELD_HEALTH_PERCENT = 0.5f;
     /** 怪物元素攻击施加的层数缩放（怪物命中比玩家武器保守，标记型元素保底 1 层） */
-    private static final float MONSTER_STACK_SCALE = 0.4f;
+    private static final float MONSTER_STACK_SCALE = 0.5f;
     /** 棱镜 Refract：带标记目标受击时溅射本击伤害的比例 */
-    private static final float REFRACT_SPLASH_RATIO = 0.25f;
+    private static final float REFRACT_SPLASH_RATIO = 0.3f;
     /** 棱镜折射溅射半径 */
-    private static final float REFRACT_RADIUS = 2.0f;
+    private static final float REFRACT_RADIUS = 2.5f;
 
     /** 统计周围 radius 格内数量最多的元素怪物元素；没有则返回 null */
     @Nullable
@@ -170,6 +171,13 @@ public class ElementalStateEvents {
         // 缚丝 Sever：攻击者带缚丝标记 → 造成伤害 -40%（倍率可被词条调整；
         // 反向结算：攻击者是怪物时用被攻击玩家的武器增强防御）
         Entity sourceEntity = event.getSource().getEntity();
+        ElementType attackElement = ModDamageSources.getElement(event.getSource());
+
+        // 月蚀净化：带月标记的目标受到光能攻击时触发额外暗影伤害并清除月标记
+        ElementEffectRegistry.get(ElementType.MOON).onHurt(
+                target, ElementType.MOON, attackElement, event.getAmount(),
+                sourceEntity instanceof LivingEntity living ? living : null);
+
         if (sourceEntity instanceof LivingEntity attacker) {
             if (IElementalEntity.of(attacker).getElementStacks(ElementType.STRAND) > 0) {
                 float multiplier = dispatchMultiplier(findEventTool(sourceEntity, target), ElementType.STRAND, SEVER_DAMAGE_MULTIPLIER);
@@ -340,7 +348,7 @@ public class ElementalStateEvents {
         }
 
         // 先尝试元素反应，再施加怪物元素攻击附着
-        ElementReactionEvents.tryTriggerReaction(target, element, attacker);
+        ElementReactionEngine.tryTriggerReaction(target, element, attacker);
 
         // 施加元素状态：层数按怪物系数缩放（标记型元素保底 1 层），时长同玩家武器
         float stacks = Math.max(1.0f, element.getStacksPerHit() * MONSTER_STACK_SCALE);

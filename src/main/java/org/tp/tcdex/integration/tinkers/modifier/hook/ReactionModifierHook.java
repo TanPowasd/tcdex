@@ -11,7 +11,7 @@ import java.util.Collection;
 /**
  * 元素反应 Hook：武器/装备上的词条可调整元素反应的各项参数，并在反应触发后获得回调。
  *
- * <p>由 {@link org.tp.tcdex.reaction.ElementReactionEvents} 在反应触发时遍历攻击者
+ * <p>由 {@link org.tp.tcdex.reaction.ElementReactionEngine} 在反应触发时遍历攻击者
  * 手持匠魂工具链式派发（AllMerger）。</p>
  */
 public interface ReactionModifierHook {

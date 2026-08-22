@@ -30,6 +30,7 @@ public final class ModDamageSources {
     public static final ResourceKey<DamageType> VOID_DAMAGE_TYPE = elementKey("void");
     public static final ResourceKey<DamageType> STASIS_DAMAGE_TYPE = elementKey("stasis");
     public static final ResourceKey<DamageType> STRAND_DAMAGE_TYPE = elementKey("strand");
+    public static final ResourceKey<DamageType> MOON_DAMAGE_TYPE = elementKey("moon");
     public static final ResourceKey<DamageType> SINKSTAR_DAMAGE_TYPE = elementKey("sinkstar");
     public static final ResourceKey<DamageType> MISTFLOW_DAMAGE_TYPE = elementKey("mistflow");
     public static final ResourceKey<DamageType> TIDE_DAMAGE_TYPE = elementKey("tide");
@@ -67,6 +68,7 @@ public final class ModDamageSources {
     public static boolean isElementDamage(net.minecraft.world.damagesource.DamageSource source) {
         return source.is(SOLAR_DAMAGE_TYPE) || source.is(ARC_DAMAGE_TYPE) || source.is(VOID_DAMAGE_TYPE)
                 || source.is(STASIS_DAMAGE_TYPE) || source.is(STRAND_DAMAGE_TYPE)
+                || source.is(MOON_DAMAGE_TYPE)
                 || source.is(SINKSTAR_DAMAGE_TYPE) || source.is(MISTFLOW_DAMAGE_TYPE)
                 || source.is(TIDE_DAMAGE_TYPE) || source.is(PRISM_DAMAGE_TYPE);
     }
@@ -87,6 +89,7 @@ public final class ModDamageSources {
             case VOID -> VOID_DAMAGE_TYPE;
             case STASIS -> STASIS_DAMAGE_TYPE;
             case STRAND -> STRAND_DAMAGE_TYPE;
+            case MOON -> MOON_DAMAGE_TYPE;
             case SINKSTAR -> SINKSTAR_DAMAGE_TYPE;
             case MISTFLOW -> MISTFLOW_DAMAGE_TYPE;
             case TIDE -> TIDE_DAMAGE_TYPE;
@@ -105,6 +108,7 @@ public final class ModDamageSources {
         if (source.is(VOID_DAMAGE_TYPE)) return ElementType.VOID;
         if (source.is(STASIS_DAMAGE_TYPE)) return ElementType.STASIS;
         if (source.is(STRAND_DAMAGE_TYPE)) return ElementType.STRAND;
+        if (source.is(MOON_DAMAGE_TYPE)) return ElementType.MOON;
         if (source.is(SINKSTAR_DAMAGE_TYPE)) return ElementType.SINKSTAR;
         if (source.is(MISTFLOW_DAMAGE_TYPE)) return ElementType.MISTFLOW;
         if (source.is(TIDE_DAMAGE_TYPE)) return ElementType.TIDE;

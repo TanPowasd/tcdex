@@ -11,7 +11,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.energy.ElementEnergyManager;
 import org.tp.tcdex.modifier.elemental.IElementalEntity;
-import org.tp.tcdex.reaction.ElementReactionEvents;
+import org.tp.tcdex.reaction.ElementReactionEngine;
 import org.tp.tcdex.shield.ElementalShieldHelper;
 
 /**
@@ -53,7 +53,7 @@ public class IronSpellsEvents {
         }
 
         // 触发元素反应 + 施加元素状态（即使被护盾吸收也会积累元素）
-        ElementReactionEvents.tryTriggerReaction(target, element, source);
+        ElementReactionEngine.tryTriggerReaction(target, element, source);
         float stacks = Math.max(1.0f, element.getStacksPerHit() * SPELL_STACK_SCALE);
         IElementalEntity.of(target).addElementState(element, stacks, element.getStateDuration());
 

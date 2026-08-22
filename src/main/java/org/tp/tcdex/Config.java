@@ -10,7 +10,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import org.tp.tcdex.element.ElementManager;
 import org.tp.tcdex.element.ElementType;
 import org.tp.tcdex.light.LightLevelManager;
-import org.tp.tcdex.reaction.ElementReactionEvents;
+import org.tp.tcdex.reaction.ElementReactionEngine;
 import org.tp.tcdex.shield.PlayerShieldManager;
 import org.tp.tcdex.shield.PrismShieldConfig;
 
@@ -433,7 +433,7 @@ public class Config {
         // 护盾破盾效率表（同/克/反克/其他）
         ElementManager.reloadShieldEfficiencyTable(SHIELD_ELEMENT_EFFICIENCIES.get());
         // 元素反应系统
-        ElementReactionEvents.setEnabled(ELEMENT_REACTIONS_ENABLED.get());
+        ElementReactionEngine.setEnabled(ELEMENT_REACTIONS_ENABLED.get());
         ElementManager.setAuraDecayPerTick((float) (double) AURA_DECAY_PER_TICK.get());
         // 棱镜盾参数（磨损效率/减免/回复）
         PrismShieldConfig.reload(

@@ -233,6 +233,22 @@ public class LightLevelEvents {
                                                 })
                                         )
                                 )
+                                .then(Commands.literal("reaction")
+                                        .then(Commands.literal("on")
+                                                .executes(ctx -> {
+                                                    TcdexDebug.setReactionDebugEnabled(true);
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.tcdex.debug.reaction.enabled"), true);
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(Commands.literal("off")
+                                                .executes(ctx -> {
+                                                    TcdexDebug.setReactionDebugEnabled(false);
+                                                    ctx.getSource().sendSuccess(() -> Component.translatable("command.tcdex.debug.reaction.disabled"), true);
+                                                    return 1;
+                                                })
+                                        )
+                                )
                         )
                         .then(Commands.literal("element")
                                 .executes(ctx -> {

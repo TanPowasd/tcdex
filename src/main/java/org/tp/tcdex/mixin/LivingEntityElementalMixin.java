@@ -56,6 +56,10 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
     @Unique
     private int tcdex$scorchCounter;
 
+    /** 月蚀 DoT 计时器：每 10 tick 结算一跳（0.5 秒） */
+    @Unique
+    private int tcdex$moonCounter;
+
     /** 破绽/失衡：当前失衡值（0~100） */
     @Unique
     private float tcdex$imbalance;
@@ -449,6 +453,20 @@ public abstract class LivingEntityElementalMixin implements IElementalEntity {
                     if (dot > 0.01f) {
                         self.hurt(org.tp.tcdex.damage.ModDamageSources.scorch(self), dot);
                         self.invulnerableTime = 0; // 释放无敌帧，玩家攻击不受影响
+                    }
+                }
+            }
+
+            // 月蚀：持续暗影伤害（魔法伤害，避免自我元素反应循环）
+            if (type == ElementType.MOON && type.getDoTPerStack() > 0) {
+                tcdex$moonCounter++;
+                if (tcdex$moonCounter >= 10) {
+                    tcdex$moonCounter = 0;
+                    float resistance = ElementManager.getResistance(self, type);
+                    float dot = status.stacks * type.getDoTPerStack() * 10f;
+                    if (dot > 0.01f) {
+                        self.hurt(self.damageSources().magic(), dot);
+                        self.invulnerableTime = 0;
                     }
                 }
             }

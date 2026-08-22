@@ -10,6 +10,9 @@ public final class TcdexDebug {
     /** 元素/护盾系统调试开关 */
     private static boolean elementalEnabled = false;
 
+    /** 元素反应触发调试开关 */
+    private static boolean reactionDebugEnabled = false;
+
     private TcdexDebug() {
     }
 
@@ -25,5 +28,19 @@ public final class TcdexDebug {
     public static boolean toggleElemental() {
         elementalEnabled = !elementalEnabled;
         return elementalEnabled;
+    }
+
+    public static boolean isReactionDebugEnabled() {
+        return reactionDebugEnabled;
+    }
+
+    public static void setReactionDebugEnabled(boolean enabled) {
+        reactionDebugEnabled = enabled;
+    }
+
+    /** 切换元素反应调试开关，返回切换后的状态 */
+    public static boolean toggleReaction() {
+        reactionDebugEnabled = !reactionDebugEnabled;
+        return reactionDebugEnabled;
     }
 }

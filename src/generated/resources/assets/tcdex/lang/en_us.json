@@ -6,8 +6,10 @@
   "command.tcdex.debug.disabled": "Light level debug output disabled",
   "command.tcdex.debug.element.disabled": "Elemental debug output disabled",
   "command.tcdex.debug.element.enabled": "Elemental debug output enabled",
+  "command.tcdex.debug.reaction.enabled": "Reaction debug output enabled",
+  "command.tcdex.debug.reaction.disabled": "Reaction debug output disabled",
   "command.tcdex.debug.enabled": "Light level debug output enabled",
-  "command.tcdex.setelement.invalid": "Unknown element: %s (choices: solar/arc/void/stasis/strand)",
+  "command.tcdex.setelement.invalid": "Unknown element: %s (choices: solar/arc/void/stasis/strand/moon/sinkstar/mistflow/tide/prism)",
   "command.tcdex.setelement.no_modifier": "Main hand weapon has no Elemental Charge modifier",
   "command.tcdex.setelement.prism_disabled": "Prism cannot be obtained via Elemental Charge (boss-exclusive)",
   "command.tcdex.setelement.success": "Set main hand weapon Elemental Charge to %s",
@@ -90,8 +92,8 @@
   "modifier.tcdex.war_banner.description": "Kills raise the War Banner: each kill adds a stack (max 4, 8s refreshed on kill). While the banner stands, nearby players (8 blocks, including yourself) deal +8% damage per stack and heal 0.5 per second per stack.",
   "modifier.tcdex.war_banner.flavor": "Raise the banner. Rally the Light.",
   "tooltip.tcdex.light_level": "Light: %s",
-  "modifier.tcdex.elemental.element.sinkstar": "Sinkstar",
-  "modifier.tcdex.elemental.element.mistflow": "Mistflow",
+  "modifier.tcdex.elemental.element.sinkstar": "Meteor",
+  "modifier.tcdex.elemental.element.mistflow": "Aetherflow",
   "death.attack.tcdex.sinkstar": "%1$s was crushed by a falling star",
   "death.attack.tcdex.mistflow": "%1$s was scattered by the mistflow",
   "modifier.tcdex.elemental_mastery": "Elemental Mastery",
@@ -111,6 +113,8 @@
   "item.tcdex.artifact.slot.artifact_goblet": "Goblet",
   "item.tcdex.artifact.slot.artifact_circlet": "Circlet",
   "item.tcdex.element_energy_orb": "Element Energy Orb",
-  "modifier.tcdex.elemental.element.tide": "Tide",
-  "item.tcdex.light_orb": "Light Orb"
+  "modifier.tcdex.elemental.element.tide": "Water",
+  "item.tcdex.light_orb": "Light Orb",
+  "modifier.tcdex.elemental.element.moon": "Moon",
+  "death.attack.tcdex.moon": "%1$s was eclipsed by the Moon"
 }
